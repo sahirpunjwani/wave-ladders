@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaveLadders — Peer-to-Peer Snakes & Ladders</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Bootstrap Icons CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- PeerJS CDN -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        dark: {
+                            900: '#0b0f19',
+                            800: '#111827',
+                            700: '#1f2937',
+                            600: '#374151'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #07090e;
+            color: #f3f4f6;
+            overflow-x: hidden;
+        }
+        .bg-grid {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        }
+        .ambient-glow-1 {
+            position: absolute;
+            top: -100px;
+            left: -50px;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.08) 40%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .ambient-glow-2 {
+            position: absolute;
+            top: 30%;
+            right: -100px;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, rgba(59, 130, 246, 0.05) 50%, transparent 75%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .glass-card {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+        .glow-button {
+            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+            transition: all 0.2s ease;
+        }
+        .glow-button:hover {
+            opacity: 0.95;
+            box-shadow: 0 0 25px rgba(6, 182, 212, 0.4);
+        }
+        .color-swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 2px solid transparent;
+        }
+        .color-swatch.selected {
+            transform: scale(1.15);
+            border-color: #ffffff;
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+        }
+        .waiting-pulse-ring {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, rgba(99, 102, 241, 0.1) 70%, transparent 100%);
+            border: 1px solid rgba(6, 182, 212, 0.4);
+            box-shadow: 0 0 30px rgba(6, 182, 212, 0.25);
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.08); opacity: 1; box-shadow: 0 0 40px rgba(6, 182, 212, 0.4); }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+    </style>
+</head>
+<body class="bg-grid min-h-screen flex flex-col justify-between relative selection:bg-cyan-500 selection:text-white">
+
+    <!-- Ambient background shimmers -->
+    <div class="ambient-glow-1"></div>
+    <div class="ambient-glow-2"></div>
+
+    <!-- Header / Navbar -->
+    <header class="w-full max-w-4xl mx-auto px-6 py-5 flex items-center justify-between z-10">
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="location.reload()">
+            <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 text-white text-xl">
+                <i class="bi bi-dice-5-fill"></i>
+            </div>
+            <div>
+                <div class="font-bold text-lg tracking-tight flex items-center space-x-1">
+                    <span>Wave</span><span class="text-cyan-400">Ladders</span>
+                </div>
+                <div class="text-xs text-gray-400 font-medium">peer-to-peer snakes & ladders · no accounts</div>
+            </div>
+        </div>
+        <div id="header-elo" class="text-xs font-semibold px-3 py-1.5 rounded-full bg-dark-800 border border-dark-600 text-gray-300">
+            ELO: <span id="nav-elo-val" class="text-cyan-400">1200</span>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="w-full max-w-2xl mx-auto px-4 py-4 flex-grow flex items-center justify-center z-10">
+
+        <!-- VIEW 1: LOBBY / HOME -->
+        <div id="view-lobby" class="w-full glass-card rounded-2xl p-6 sm:p-10 transition-all duration-300">
+            <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-3">
+                Play Snakes & Ladders with friends,<br>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">device-to-device.</span>
+            </h1>
+            <p class="text-gray-400 text-sm sm:text-base mb-6 leading-relaxed">
+                Create a room, share the 6-letter code, and play in real-time. Moves are sent directly between browsers using WebRTC.
+            </p>
+
+            <!-- Name Input -->
+            <div class="mb-5">
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Your Name</label>
+                <input type="text" id="input-username" value="Guest" maxlength="15" 
+                    class="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400 transition-colors">
+            </div>
+
+            <!-- 12 Color Options Picker -->
+            <div class="mb-6">
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Choose Your Piece Color</label>
+                <div class="flex flex-wrap gap-2.5 items-center bg-dark-800/60 p-3.5 rounded-xl border border-dark-600" id="color-picker-container">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- Create Room Button -->
+            <button onclick="createRoom()" class="w-full glow-button text-white font-semibold py-3.5 px-6 rounded-xl shadow-lg shadow-cyan-500/20 text-base mb-6 cursor-pointer">
+                Create a game room
+            </button>
+
+            <div class="relative flex py-1 items-center mb-6">
+                <div class="flex-grow border-t border-dark-600"></div>
+                <span class="flex-shrink mx-4 text-xs text-gray-400 uppercase tracking-wider">or join with a code</span>
+                <div class="flex-grow border-t border-dark-600"></div>
+            </div>
+
+            <!-- Join Room Form -->
+            <div class="flex gap-3">
+                <input type="text" id="input-room-code" placeholder="C O D E" maxlength="6"
+                    class="flex-grow bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-center font-mono tracking-widest text-white uppercase placeholder-gray-600 focus:outline-none focus:border-cyan-400 transition-colors">
+                <button onclick="joinRoom()" class="bg-dark-700 hover:bg-dark-600 border border-dark-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors text-sm">
+                    Join &rarr;
+                </button>
+            </div>
+
+            <p class="text-xs text-gray-500 mt-6 text-center">
+                Host plays first. Local ELO rating is stored securely on your device.
+            </p>
+        </div>
+
+        <!-- VIEW 2: WAITING FOR OPPONENT -->
+        <div id="view-waiting" class="w-full glass-card rounded-2xl p-8 sm:p-12 text-center hidden">
+            <!-- Pulsing Loading Icon -->
+            <div class="flex justify-center mb-6">
+                <div class="waiting-pulse-ring flex items-center justify-center text-cyan-300 text-2xl">
+                    <i class="bi bi-dice-3-fill"></i>
+                </div>
+            </div>
+
+            <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2">Waiting for opponent…</h2>
+            <p class="text-gray-400 text-sm mb-6">Share this room code:</p>
+            
+            <!-- Dotted Room Code Box -->
+            <div class="inline-block bg-dark-800/80 border border-indigo-500/40 border-dashed rounded-2xl py-4 px-8 mb-6 shadow-inner">
+                <div id="display-room-code" class="font-mono text-3xl sm:text-4xl font-extrabold tracking-[0.25em] text-white">
+                    ······
+                </div>
+            </div>
+            
+            <!-- Action Buttons: Copy code & Copy invite link -->
+            <div class="flex flex-wrap items-center justify-center gap-3 mb-4">
+                <button onclick="copyCodeToClipboard()" class="bg-dark-800 hover:bg-dark-700 border border-dark-600 text-gray-200 text-xs font-medium py-2.5 px-4 rounded-xl flex items-center space-x-2 transition-colors">
+                    <i class="bi bi-clipboard"></i>
+                    <span id="copy-code-text">Copy code</span>
+                </button>
+                <button onclick="copyInviteLink()" class="bg-dark-800 hover:bg-dark-700 border border-dark-600 text-gray-200 text-xs font-medium py-2.5 px-4 rounded-xl flex items-center space-x-2 transition-colors">
+                    <i class="bi bi-link-45deg"></i>
+                    <span id="copy-link-text">Copy invite link</span>
+                </button>
+            </div>
+
+            <!-- Invite Link Text Preview -->
+            <div id="invite-link-preview" class="text-[11px] text-gray-500 mb-8 truncate max-w-md mx-auto">
+                Invite link: —
+            </div>
+            
+            <div>
+                <button onclick="cancelRoom()" class="text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 border border-rose-500/20 py-2 px-6 rounded-xl transition-colors">
+                    Cancel
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW 3: CONNECTING -->
+        <div id="view-connecting" class="w-full glass-card rounded-2xl p-8 text-center hidden">
+            <div class="inline-block w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <h2 class="text-2xl font-bold text-white mb-2">Connecting to room…</h2>
+            <p class="text-gray-400 text-sm">Establishing secure peer-to-peer data tunnel…</p>
+        </div>
+
+        <!-- VIEW 4: GAME BOARD -->
+        <div id="view-game" class="w-full glass-card rounded-2xl p-4 sm:p-6 hidden">
+            <!-- HUD Header -->
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-dark-600">
+                <div class="flex items-center space-x-2">
+                    <span id="game-status-dot" class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
+                    <div>
+                        <div id="game-opponent-name" class="text-sm font-semibold text-white">Opponent</div>
+                        <div class="text-xs text-gray-400">Connected P2P</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3 text-xs">
+                    <span class="px-2.5 py-1 rounded-lg bg-dark-800 border border-dark-600 text-gray-300">You: <b id="hud-my-elo">1200</b></span>
+                    <span class="px-2.5 py-1 rounded-lg bg-dark-800 border border-dark-600 text-gray-300">Opp: <b id="hud-opp-elo">1200</b></span>
+                </div>
+            </div>
+
+            <!-- Turn & Action Banner -->
+            <div id="turn-banner" class="text-center py-2.5 px-4 mb-4 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 font-medium text-sm">
+                Waiting for game start...
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                <!-- Board Area (10x10 Grid) -->
+                <div class="md:col-span-2 bg-dark-900 border border-dark-700 rounded-xl p-2 relative aspect-square flex items-center justify-center">
+                    <div id="snakes-board" class="w-full h-full grid grid-cols-10 grid-rows-10 gap-0.5 relative">
+                        <!-- Generated via JS -->
+                    </div>
+                </div>
+
+                <!-- Controls & Dice Sidebar -->
+                <div class="flex flex-col space-y-4">
+                    <!-- Dice Box -->
+                    <div class="bg-dark-800 border border-dark-700 rounded-xl p-5 text-center flex flex-col items-center justify-center">
+                        <div class="text-xs uppercase tracking-wider text-gray-400 mb-2">Dice Roll</div>
+                        <div id="dice-display" class="w-20 h-20 rounded-2xl bg-dark-700 border border-dark-600 flex items-center justify-center text-3xl font-extrabold text-cyan-400 mb-4 shadow-inner">
+                            <i class="bi bi-dice-6"></i>
+                        </div>
+                        <button id="btn-roll" onclick="performDiceRoll()" disabled
+                            class="w-full py-3 px-4 rounded-xl font-semibold bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 opacity-50 cursor-not-allowed transition-all">
+                            Roll Dice
+                        </button>
+                    </div>
+
+                    <!-- Legend & Info -->
+                    <div class="bg-dark-800 border border-dark-700 rounded-xl p-4 text-xs space-y-2 text-gray-400">
+                        <div class="flex items-center justify-between">
+                            <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span><span>Ladders</span></span>
+                            <span class="text-emerald-400 font-mono">Climb up</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span><span>Snakes</span></span>
+                            <span class="text-rose-400 font-mono">Slide down</span>
+                        </div>
+                        <div class="pt-2 border-t border-dark-700 flex justify-between">
+                            <span>Target:</span>
+                            <span class="text-white font-bold font-mono">Square 100</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full max-w-4xl mx-auto px-6 py-4 text-center text-xs text-gray-500 z-10">
+        Built with PeerJS + Tailwind CSS · works great on GitHub Pages
+    </footer>
+
+    <!-- GAME OVER MODAL -->
+    <div id="modal-gameover" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="glass-card rounded-2xl p-8 max-w-sm w-full text-center mx-4">
+            <div id="gameover-icon" class="text-4xl text-cyan-400 mb-3"><i class="bi bi-trophy-fill"></i></div>
+            <h3 id="gameover-title" class="text-2xl font-bold text-white mb-2">You Won!</h3>
+            <p id="gameover-desc" class="text-gray-300 text-sm mb-6">Congratulations on climbing to square 100 first.</p>
+            <button onclick="location.reload()" class="w-full glow-button text-white font-semibold py-3 rounded-xl">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <!-- CLIENT SCRIPT -->
+    <script>
+        // 12 Distinct Color Options
+        const COLOR_OPTIONS = [
+            { id: 'cyan', name: 'Neon Cyan', bg: '#06b6d4', ring: '#22d3ee' },
+            { id: 'emerald', name: 'Emerald', bg: '#10b981', ring: '#34d399' },
+            { id: 'indigo', name: 'Deep Indigo', bg: '#6366f1', ring: '#818cf8' },
+            { id: 'rose', name: 'Hot Rose', bg: '#f43f5e', ring: '#fb7185' },
+            { id: 'amber', name: 'Amber Gold', bg: '#f59e0b', ring: '#fbbf24' },
+            { id: 'purple', name: 'Electric Purple', bg: '#8b5cf6', ring: '#a78bfa' },
+            { id: 'teal', name: 'Vibrant Teal', bg: '#14b8a6', ring: '#2dd4bf' },
+            { id: 'pink', name: 'Bubblegum Pink', bg: '#ec4899', ring: '#f472b6' },
+            { id: 'lime', name: 'Matrix Lime', bg: '#84cc16', ring: '#a3e635' },
+            { id: 'orange', name: 'Sunset Orange', bg: '#f97316', ring: '#fb923c' },
+            { id: 'blue', name: 'Ocean Blue', bg: '#3b82f6', ring: '#60a5fa' },
+            { id: 'violet', name: 'Neon Violet', bg: '#7c3aed', ring: '#8b5cf6' }
+        ];
+
+        let selectedColor = COLOR_OPTIONS[0];
+
+        // Snakes and Ladders Mapping (Start -> End)
+        const LADDERS = { 1: 38, 4: 14, 9: 31, 21: 42, 28: 84, 51: 67, 72: 91, 80: 99 };
+        const SNAKES = { 17: 7, 54: 34, 62: 19, 64: 60, 87: 24, 93: 73, 95: 75, 98: 79 };
+
+        // Game State
+        let peer = null;
+        let conn = null;
+        let isHost = false;
+        let roomCode = '';
+        let myName = 'Guest';
+        let oppName = 'Opponent';
+        let myElo = parseInt(localStorage.getItem('waveladders_elo') || '1200');
+        let oppElo = 1200;
+
+        let myPos = 0;
+        let oppPos = 0;
+        let myTurn = false;
+
+        function getDiceIcon(num) {
+            const icons = {
+                1: 'bi-dice-1',
+                2: 'bi-dice-2',
+                3: 'bi-dice-3',
+                4: 'bi-dice-4',
+                5: 'bi-dice-5',
+                6: 'bi-dice-6'
+            };
+            return `<i class="bi ${icons[num] || 'bi-dice-6'}"></i>`;
+        }
+
+        function initApp() {
+            const container = document.getElementById('color-picker-container');
+            container.innerHTML = '';
+            COLOR_OPTIONS.forEach((c, idx) => {
+                const swatch = document.createElement('div');
+                swatch.className = `color-swatch ${idx === 0 ? 'selected' : ''}`;
+                swatch.style.backgroundColor = c.bg;
+                swatch.title = c.name;
+                swatch.onclick = () => {
+                    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+                    swatch.classList.add('selected');
+                    selectedColor = c;
+                };
+                container.appendChild(swatch);
+            });
+            document.getElementById('nav-elo-val').innerText = myElo;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomParam = urlParams.get('room');
+            if (roomParam && roomParam.length === 6) {
+                document.getElementById('input-room-code').value = roomParam.toUpperCase();
+            }
+        }
+
+        function buildBoardDOM() {
+            const boardContainer = document.getElementById('snakes-board');
+            boardContainer.innerHTML = '';
+
+            for (let row = 9; row >= 0; row--) {
+                let colIndices = [];
+                for (let col = 0; col < 10; col++) {
+                    colIndices.push(col);
+                }
+                if (row % 2 === 1) {
+                    colIndices.reverse();
+                }
+
+                colIndices.forEach(col => {
+                    const num = row * 10 + col + 1;
+                    const cell = document.createElement('div');
+                    cell.id = `cell-${num}`;
+                    cell.className = 'border border-dark-700/50 rounded flex flex-col justify-between p-1 relative text-[10px] font-mono select-none';
+                    
+                    if (LADDERS[num]) {
+                        cell.classList.add('bg-emerald-950/30', 'border-emerald-500/20');
+                    } else if (SNAKES[num]) {
+                        cell.classList.add('bg-rose-950/30', 'border-rose-500/20');
+                    } else {
+                        cell.classList.add('bg-dark-800/40');
+                    }
+
+                    const numSpan = document.createElement('span');
+                    numSpan.className = 'text-gray-500 font-semibold';
+                    numSpan.innerText = num;
+                    cell.appendChild(numSpan);
+
+                    if (LADDERS[num]) {
+                        const tag = document.createElement('span');
+                        tag.className = 'text-emerald-400 font-bold text-[8px] truncate';
+                        tag.innerText = `L:${LADDERS[num]}`;
+                        cell.appendChild(tag);
+                    } else if (SNAKES[num]) {
+                        const tag = document.createElement('span');
+                        tag.className = 'text-rose-400 font-bold text-[8px] truncate';
+                        tag.innerText = `S:${SNAKES[num]}`;
+                        cell.appendChild(tag);
+                    }
+
+                    const tokenContainer = document.createElement('div');
+                    tokenContainer.id = `tokens-${num}`;
+                    tokenContainer.className = 'absolute inset-0 flex items-center justify-center gap-1 pointer-events-none';
+                    cell.appendChild(tokenContainer);
+
+                    boardContainer.appendChild(cell);
+                });
+            }
+            updateTokenPositions();
+        }
+
+        function updateTokenPositions() {
+            for (let i = 0; i <= 100; i++) {
+                const tc = document.getElementById(`tokens-${i}`);
+                if (tc) tc.innerHTML = '';
+            }
+
+            if (myPos >= 0 && myPos <= 100) {
+                const tc = document.getElementById(`tokens-${myPos}`);
+                if (tc) {
+                    const t = document.createElement('div');
+                    t.className = 'w-4 h-4 rounded-full shadow-lg border border-white/80 animate-bounce';
+                    t.style.backgroundColor = selectedColor.bg;
+                    t.title = `${myName} (You)`;
+                    tc.appendChild(t);
+                }
+            }
+
+            if (oppPos >= 0 && oppPos <= 100) {
+                const tc = document.getElementById(`tokens-${oppPos}`);
+                if (tc) {
+                    const t = document.createElement('div');
+                    t.className = 'w-4 h-4 rounded-full shadow-lg border border-white/80';
+                    t.style.backgroundColor = selectedColor.bg === '#f59e0b' ? '#06b6d4' : '#f59e0b';
+                    t.title = oppName;
+                    tc.appendChild(t);
+                }
+            }
+        }
+
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        function createRoom() {
+            myName = document.getElementById('input-username').value.trim() || 'Guest';
+            roomCode = generateRoomCode();
+            isHost = true;
+            myPos = 0;
+            oppPos = 0;
+
+            document.getElementById('view-lobby').classList.add('hidden');
+            document.getElementById('view-waiting').classList.remove('hidden');
+            
+            document.getElementById('display-room-code').innerText = roomCode.split('').join(' ');
+            
+            const baseUrl = window.location.origin + window.location.pathname;
+            const inviteUrl = `${baseUrl}?room=${roomCode}`;
+            document.getElementById('invite-link-preview').innerText = `Invite link: ${inviteUrl}`;
+
+            peer = new Peer('wave-ladder-' + roomCode.toLowerCase());
+            peer.on('open', (id) => {
+                console.log('Room created with ID:', id);
+            });
+
+            peer.on('connection', (incomingConn) => {
+                conn = incomingConn;
+                setupConnection();
+            });
+
+            peer.on('error', (err) => {
+                alert('Connection error: ' + err.type);
+                cancelRoom();
+            });
+        }
+
+        function joinRoom() {
+            myName = document.getElementById('input-username').value.trim() || 'Guest';
+            const codeInput = document.getElementById('input-room-code').value.trim().toUpperCase();
+            if (codeInput.length !== 6) {
+                alert('Please enter a valid 6-letter room code.');
+                return;
+            }
+
+            roomCode = codeInput;
+            isHost = false;
+            myPos = 0;
+            oppPos = 0;
+
+            document.getElementById('view-lobby').classList.add('hidden');
+            document.getElementById('view-connecting').classList.remove('hidden');
+
+            peer = new Peer();
+            peer.on('open', () => {
+                conn = peer.connect('wave-ladder-' + roomCode.toLowerCase());
+                setupConnection();
+            });
+
+            peer.on('error', () => {
+                alert('Could not find room with code: ' + roomCode);
+                cancelRoom();
+            });
+        }
+
+        function cancelRoom() {
+            if (peer) peer.destroy();
+            document.getElementById('view-waiting').classList.add('hidden');
+            document.getElementById('view-connecting').classList.add('hidden');
+            document.getElementById('view-game').classList.add('hidden');
+            document.getElementById('view-lobby').classList.remove('hidden');
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        function copyCodeToClipboard() {
+            navigator.clipboard.writeText(roomCode).then(() => {
+                const btnText = document.getElementById('copy-code-text');
+                btnText.innerText = 'Copied!';
+                setTimeout(() => { btnText.innerText = 'Copy code'; }, 2000);
+            });
+        }
+
+        function copyInviteLink() {
+            const baseUrl = window.location.origin + window.location.pathname;
+            const inviteUrl = `${baseUrl}?room=${roomCode}`;
+            navigator.clipboard.writeText(inviteUrl).then(() => {
+                const btnText = document.getElementById('copy-link-text');
+                btnText.innerText = 'Copied link!';
+                setTimeout(() => { btnText.innerText = 'Copy invite link'; }, 2000);
+            });
+        }
+
+        function setupConnection() {
+            conn.on('open', () => {
+                conn.send({
+                    type: 'HANDSHAKE',
+                    name: myName,
+                    elo: myElo,
+                    color: selectedColor
+                });
+
+                if (isHost) {
+                    startGame(true);
+                }
+            });
+
+            conn.on('data', (data) => {
+                handlePeerData(data);
+            });
+
+            conn.on('close', () => {
+                alert('Opponent disconnected.');
+                location.reload();
+            });
+        }
+
+        function startGame(hostTurn) {
+            document.getElementById('view-waiting').classList.add('hidden');
+            document.getElementById('view-connecting').classList.add('hidden');
+            document.getElementById('view-game').classList.remove('hidden');
+
+            buildBoardDOM();
+
+            document.getElementById('game-opponent-name').innerText = oppName;
+            document.getElementById('hud-my-elo').innerText = myElo;
+            document.getElementById('hud-opp-elo').innerText = oppElo;
+
+            myTurn = hostTurn;
+            updateTurnUI();
+        }
+
+        function handlePeerData(data) {
+            if (data.type === 'HANDSHAKE') {
+                oppName = data.name;
+                oppElo = data.elo;
+                document.getElementById('game-opponent-name').innerText = oppName;
+                document.getElementById('hud-opp-elo').innerText = oppElo;
+            } else if (data.type === 'ROLL_MOVE') {
+                const roll = data.roll;
+                const newPos = data.newPos;
+                
+                document.getElementById('dice-display').innerHTML = getDiceIcon(roll);
+                oppPos = newPos;
+                updateTokenPositions();
+
+                if (oppPos === 100) {
+                    triggerGameOver(false);
+                    return;
+                }
+
+                myTurn = true;
+                updateTurnUI();
+            }
+        }
+
+        function updateTurnUI() {
+            const banner = document.getElementById('turn-banner');
+            const rollBtn = document.getElementById('btn-roll');
+
+            if (myTurn) {
+                banner.innerText = "Your turn! Roll the dice.";
+                banner.className = "text-center py-2.5 px-4 mb-4 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 font-medium text-sm animate-pulse";
+                rollBtn.disabled = false;
+                rollBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                rollBtn.classList.add('glow-button', 'cursor-pointer');
+            } else {
+                banner.innerText = `${oppName}'s turn to roll...`;
+                banner.className = "text-center py-2.5 px-4 mb-4 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 font-medium text-sm";
+                rollBtn.disabled = true;
+                rollBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                rollBtn.classList.remove('glow-button', 'cursor-pointer');
+            }
+        }
+
+        function performDiceRoll() {
+            if (!myTurn) return;
+            myTurn = false;
+            updateTurnUI();
+
+            const rollBtn = document.getElementById('btn-roll');
+            rollBtn.disabled = true;
+
+            let counter = 0;
+            const diceEl = document.getElementById('dice-display');
+            
+            const rollInterval = setInterval(() => {
+                const tempRoll = Math.floor(Math.random() * 6) + 1;
+                diceEl.innerHTML = getDiceIcon(tempRoll);
+                counter++;
+                if (counter > 10) {
+                    clearInterval(rollInterval);
+                    
+                    const finalRoll = Math.floor(Math.random() * 6) + 1;
+                    diceEl.innerHTML = getDiceIcon(finalRoll);
+
+                    let targetPos = myPos + finalRoll;
+                    if (targetPos > 100) {
+                        targetPos = 100 - (targetPos - 100);
+                    }
+
+                    if (LADDERS[targetPos]) {
+                        targetPos = LADDERS[targetPos];
+                    } else if (SNAKES[targetPos]) {
+                        targetPos = SNAKES[targetPos];
+                    }
+
+                    myPos = targetPos;
+                    updateTokenPositions();
+
+                    conn.send({
+                        type: 'ROLL_MOVE',
+                        roll: finalRoll,
+                        newPos: myPos
+                    });
+
+                    if (myPos === 100) {
+                        triggerGameOver(true);
+                        return;
+                    }
+                }
+            }, 60);
+        }
+
+        function triggerGameOver(didWin) {
+            const modal = document.getElementById('modal-gameover');
+            const icon = document.getElementById('gameover-icon');
+            const title = document.getElementById('gameover-title');
+            const desc = document.getElementById('gameover-desc');
+
+            modal.classList.remove('hidden');
+
+            if (didWin) {
+                icon.innerHTML = '<i class="bi bi-trophy-fill"></i>';
+                icon.className = "text-4xl text-cyan-400 mb-3";
+                title.innerText = "You Won!";
+                title.className = "text-2xl font-bold text-cyan-400 mb-2";
+                desc.innerText = "You successfully climbed to square 100 first!";
+                myElo += 18;
+            } else {
+                icon.innerHTML = '<i class="bi bi-emoji-frown-fill"></i>';
+                icon.className = "text-4xl text-rose-400 mb-3";
+                title.innerText = "You Lost!";
+                title.className = "text-2xl font-bold text-rose-400 mb-2";
+                desc.innerText = `${oppName} reached square 100 first.`;
+                myElo = Math.max(100, myElo - 15);
+            }
+
+            localStorage.setItem('waveladders_elo', myElo);
+            document.getElementById('nav-elo-val').innerText = myElo;
+        }
+
+        window.onload = () => {
+            initApp();
+        };
+    </script>
+</body>
+</html>
