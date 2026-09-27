@@ -1,739 +1,704 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WaveLadders — Peer-to-Peer Snakes & Ladders</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Bootstrap Icons CDN -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <!-- PeerJS CDN -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        dark: {
-                            900: '#0b0f19',
-                            800: '#111827',
-                            700: '#1f2937',
-                            600: '#374151'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #07090e;
-            color: #f3f4f6;
-            overflow-x: hidden;
-        }
-        .bg-grid {
-            background-size: 40px 40px;
-            background-image: 
-                linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-        }
-        .ambient-glow-1 {
-            position: absolute;
-            top: -100px;
-            left: -50px;
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.08) 40%, transparent 70%);
-            pointer-events: none;
-            z-index: 0;
-        }
-        .ambient-glow-2 {
-            position: absolute;
-            top: 30%;
-            right: -100px;
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, rgba(59, 130, 246, 0.05) 50%, transparent 75%);
-            pointer-events: none;
-            z-index: 0;
-        }
-        .glass-card {
-            background: rgba(17, 24, 39, 0.75);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-        }
-        .glow-button {
-            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
-            transition: all 0.2s ease;
-        }
-        .glow-button:hover {
-            opacity: 0.95;
-            box-shadow: 0 0 25px rgba(6, 182, 212, 0.4);
-        }
-        .color-swatch {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            border: 2px solid transparent;
-        }
-        .color-swatch.selected {
-            transform: scale(1.15);
-            border-color: #ffffff;
-            box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
-        }
-        .waiting-pulse-ring {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, rgba(99, 102, 241, 0.1) 70%, transparent 100%);
-            border: 1px solid rgba(6, 182, 212, 0.4);
-            box-shadow: 0 0 30px rgba(6, 182, 212, 0.25);
-            animation: pulse-ring 2s infinite ease-in-out;
-        }
-        @keyframes pulse-ring {
-            0% { transform: scale(0.95); opacity: 0.8; }
-            50% { transform: scale(1.08); opacity: 1; box-shadow: 0 0 40px rgba(6, 182, 212, 0.4); }
-            100% { transform: scale(0.95); opacity: 0.8; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>WaveLadders — P2P Snakes & Ladders</title>
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/space-grotesk@5.1.0/500.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/space-grotesk@5.1.0/700.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.1.0/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.1.0/500.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.1.0/600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.1.0/600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<style>
+  :root {
+    --bg: #07080f;
+    --card: rgba(255,255,255,.045);
+    --card-border: rgba(255,255,255,.09);
+    --text: #eef0ff;
+    --muted: #9aa0b8;
+    --violet: #7c5cff;
+    --cyan: #22d3ee;
+    --grad: linear-gradient(135deg, #7c5cff 0%, #22d3ee 100%);
+    --danger: #ff5d7a;
+    --ok: #3ddc97;
+    --amber: #ffc857;
+    --ghost-bg: rgba(255,255,255,0.03);
+    --ghost-hover: rgba(255,255,255,0.07);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Animated Background ─────────────────────────────── */
+  .bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: var(--bg); }
+  .orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.35; }
+  .orb.a { width: 400px; height: 400px; background: var(--violet); top: -100px; left: -100px; animation: float 12s ease-in-out infinite; }
+  .orb.b { width: 500px; height: 500px; background: var(--cyan); bottom: -150px; right: -150px; animation: float 15s ease-in-out infinite reverse; }
+  .orb.c { width: 300px; height: 300px; background: var(--danger); top: 40%; left: 60%; animation: float 18s ease-in-out infinite; }
+  .grid-overlay {
+    position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  @keyframes float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, -30px); } }
+
+  /* ── Layout & Typography ─────────────────────────────── */
+  .app { max-width: 600px; width: 100%; margin: 0 auto; padding: 20px; flex: 1; display: flex; flex-direction: column; }
+  .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+  .logo { width: 44px; height: 44px; border-radius: 12px; background: var(--grad); display: grid; place-items: center; font-size: 22px; box-shadow: 0 4px 14px rgba(124,92,255,.4); }
+  .brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: -0.5px; }
+  .brand-name em { font-style: normal; color: var(--cyan); }
+  .brand-tag { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .screen { display: none; animation: fadeUp 0.3s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 20px; padding: 28px; backdrop-filter: blur(16px); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+  .hero-title { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+  .hero-title .grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero-sub { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+
+  .field-label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  input[type="text"] {
+    width: 100%; background: var(--ghost-bg); border: 1px solid var(--card-border); border-radius: 12px;
+    padding: 14px 16px; color: var(--text); font-size: 15px; font-family: 'Inter', sans-serif;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input[type="text"]:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 14px 20px; border-radius: 12px; font-size: 14px; font-weight: 600;
+    border: none; cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif;
+  }
+  .btn.primary { background: var(--grad); color: #fff; box-shadow: 0 4px 14px rgba(124,92,255,.3); }
+  .btn.primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn.primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn.ghost { background: var(--ghost-bg); border: 1px solid var(--card-border); color: var(--text); }
+  .btn.ghost:hover { background: var(--ghost-hover); }
+  .btn.danger-ghost { background: rgba(255,93,122,0.1); border: 1px solid rgba(255,93,122,0.2); color: var(--danger); }
+  .btn.danger-ghost:hover { background: rgba(255,93,122,0.15); }
+  .wfull { width: 100%; }
+
+  .divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--card-border); }
+  .join-row { display: flex; gap: 10px; }
+  .join-row input { text-align: center; font-family: 'JetBrains Mono', monospace; letter-spacing: 2px; text-transform: uppercase; }
+
+  /* ── Waiting / Connecting Screens ────────────────────── */
+  .center { text-align: center; }
+  .radar { width: 80px; height: 80px; margin: 0 auto 20px; position: relative; }
+  .ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--cyan); opacity: 0; animation: radar 2s infinite; }
+  .ring:nth-child(2) { animation-delay: 0.6s; }
+  .ring:nth-child(3) { animation-delay: 1.2s; }
+  .core { position: absolute; inset: 30px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 20px var(--cyan); }
+  @keyframes radar { 0% { transform: scale(0.5); opacity: 0.8; } 100% { transform: scale(1.2); opacity: 0; } }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--card-border); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .code-box { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700; letter-spacing: 4px; margin: 16px 0; color: var(--text); }
+  .share-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 16px; }
+  .hint { font-size: 12px; color: var(--muted); margin-bottom: 20px; word-break: break-all; }
+
+  /* ── Game Screen ─────────────────────────────────────── */
+  .game-card { background: var(--card); border: 1px solid var(--card-border); border-radius: 20px; overflow: hidden; backdrop-filter: blur(16px); }
+  .game-head { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--card-border); }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--grad); display: grid; place-items: center; font-family: 'Space Grotesk'; font-weight: 700; font-size: 17px; color: #fff; flex-shrink: 0; }
+  .meta { flex: 1; min-width: 0; }
+  .opp-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 11px; font-weight: 600; color: var(--muted); }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .pill.off .dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+  .ratings { display: flex; gap: 8px; }
+  .rating-chip { font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 99px; background: var(--ghost-bg); border: 1px solid var(--card-border); color: var(--text); }
+
+  .status-bar { padding: 12px 16px; text-align: center; color: var(--muted); font-size: 14px; border-bottom: 1px solid var(--card-border); background: var(--ghost-bg); }
+  .status-bar.active-turn { color: var(--cyan); font-weight: 600; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+  .board-wrap { display: flex; justify-content: center; padding: 24px 16px; }
+  .board-container { position: relative; width: min(94vw, 500px); background: #1a1c23; border-radius: 16px; padding: 20px; box-shadow: 0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); }
+  
+  .board-10x10 {
+    width: 100%; aspect-ratio: 1 / 1; display: grid;
+    grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 1fr);
+    border-radius: 8px; overflow: hidden; position: relative; background: #1a1c23;
+  }
+  .square-10 {
+    position: relative; display: flex; align-items: flex-start; justify-content: flex-start;
+    padding: 4%; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.25);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .square-10.light { background: rgba(255,255,255,0.04); }
+  .square-10.dark { background: rgba(0,0,0,0.25); }
+  .square-10.ladder-start { background: rgba(16, 185, 129, 0.2); box-shadow: inset 0 0 10px rgba(16, 185, 129, 0.1); }
+  .square-10.snake-start { background: rgba(244, 63, 94, 0.2); box-shadow: inset 0 0 10px rgba(244, 63, 94, 0.1); }
+
+  .board-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+  
+  .token-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+  .token {
+    position: absolute; width: 7%; height: 7%; border-radius: 50%;
+    border: 2.5px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    transform: translate(-50%, -50%); z-index: 10;
+    transition: left 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .token-my { background: var(--cyan); }
+  .token-opp { background: var(--violet); }
+
+  .controls { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 0 16px 24px; }
+  .dice-display {
+    width: 72px; height: 72px; border-radius: 16px; background: var(--ghost-bg);
+    border: 1px solid var(--card-border); display: grid; place-items: center;
+    font-size: 36px; color: var(--cyan); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+    transition: transform 0.1s;
+  }
+  @keyframes shake {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-15deg) scale(1.1); }
+    75% { transform: rotate(15deg) scale(1.1); }
+  }
+  .dice-shaking { animation: shake 0.1s infinite; }
+
+  .legend { display: flex; gap: 20px; font-size: 12px; color: var(--muted); }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .game-over { display: none; flex-direction: column; align-items: center; gap: 12px; padding: 24px; text-align: center; animation: fadeUp 0.4s ease; }
+  .game-over.show { display: flex; }
+
+  .footer-note { text-align: center; margin-top: auto; padding-top: 24px; font-size: 12px; color: #565b70; }
+  
+  #toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
+    background: var(--card); border: 1px solid var(--card-border); color: var(--text);
+    font-size: 13px; font-weight: 500; padding: 11px 20px; border-radius: 100px; z-index: 199;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5); max-width: 88vw; text-align: center;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 540px) {
+    .card { padding: 24px 20px; }
+    .join-row { flex-direction: column; }
+    .game-head { gap: 10px; }
+    .board-container { padding: 16px; }
+  }
+</style>
 </head>
-<body class="bg-grid min-h-screen flex flex-col justify-between relative selection:bg-cyan-500 selection:text-white">
+<body>
 
-    <!-- Ambient background shimmers -->
-    <div class="ambient-glow-1"></div>
-    <div class="ambient-glow-2"></div>
+<div class="bg">
+  <div class="orb a"></div><div class="orb b"></div><div class="orb c"></div>
+  <div class="grid-overlay"></div>
+</div>
 
-    <!-- Header / Navbar -->
-    <header class="w-full max-w-4xl mx-auto px-6 py-5 flex items-center justify-between z-10">
-        <div class="flex items-center space-x-3 cursor-pointer" onclick="location.reload()">
-            <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 text-white text-xl">
-                <i class="bi bi-dice-5-fill"></i>
-            </div>
-            <div>
-                <div class="font-bold text-lg tracking-tight flex items-center space-x-1">
-                    <span>Wave</span><span class="text-cyan-400">Ladders</span>
-                </div>
-                <div class="text-xs text-gray-400 font-medium">peer-to-peer snakes & ladders · no accounts</div>
-            </div>
-        </div>
-        <div id="header-elo" class="text-xs font-semibold px-3 py-1.5 rounded-full bg-dark-800 border border-dark-600 text-gray-300">
-            ELO: <span id="nav-elo-val" class="text-cyan-400">1200</span>
-        </div>
-    </header>
-
-    <!-- Main Container -->
-    <main class="w-full max-w-2xl mx-auto px-4 py-4 flex-grow flex items-center justify-center z-10">
-
-        <!-- VIEW 1: LOBBY / HOME -->
-        <div id="view-lobby" class="w-full glass-card rounded-2xl p-6 sm:p-10 transition-all duration-300">
-            <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-3">
-                Play Snakes & Ladders with friends,<br>
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">device-to-device.</span>
-            </h1>
-            <p class="text-gray-400 text-sm sm:text-base mb-6 leading-relaxed">
-                Create a room, share the 6-letter code, and play in real-time. Moves are sent directly between browsers using WebRTC.
-            </p>
-
-            <!-- Name Input -->
-            <div class="mb-5">
-                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Your Name</label>
-                <input type="text" id="input-username" value="Guest" maxlength="15" 
-                    class="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400 transition-colors">
-            </div>
-
-            <!-- 12 Color Options Picker -->
-            <div class="mb-6">
-                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Choose Your Piece Color</label>
-                <div class="flex flex-wrap gap-2.5 items-center bg-dark-800/60 p-3.5 rounded-xl border border-dark-600" id="color-picker-container">
-                    <!-- Populated via JS -->
-                </div>
-            </div>
-
-            <!-- Create Room Button -->
-            <button onclick="createRoom()" class="w-full glow-button text-white font-semibold py-3.5 px-6 rounded-xl shadow-lg shadow-cyan-500/20 text-base mb-6 cursor-pointer">
-                Create a game room
-            </button>
-
-            <div class="relative flex py-1 items-center mb-6">
-                <div class="flex-grow border-t border-dark-600"></div>
-                <span class="flex-shrink mx-4 text-xs text-gray-400 uppercase tracking-wider">or join with a code</span>
-                <div class="flex-grow border-t border-dark-600"></div>
-            </div>
-
-            <!-- Join Room Form -->
-            <div class="flex gap-3">
-                <input type="text" id="input-room-code" placeholder="C O D E" maxlength="6"
-                    class="flex-grow bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-center font-mono tracking-widest text-white uppercase placeholder-gray-600 focus:outline-none focus:border-cyan-400 transition-colors">
-                <button onclick="joinRoom()" class="bg-dark-700 hover:bg-dark-600 border border-dark-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors text-sm">
-                    Join &rarr;
-                </button>
-            </div>
-
-            <p class="text-xs text-gray-500 mt-6 text-center">
-                Host plays first. Local ELO rating is stored securely on your device.
-            </p>
-        </div>
-
-        <!-- VIEW 2: WAITING FOR OPPONENT -->
-        <div id="view-waiting" class="w-full glass-card rounded-2xl p-8 sm:p-12 text-center hidden">
-            <!-- Pulsing Loading Icon -->
-            <div class="flex justify-center mb-6">
-                <div class="waiting-pulse-ring flex items-center justify-center text-cyan-300 text-2xl">
-                    <i class="bi bi-dice-3-fill"></i>
-                </div>
-            </div>
-
-            <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2">Waiting for opponent…</h2>
-            <p class="text-gray-400 text-sm mb-6">Share this room code:</p>
-            
-            <!-- Dotted Room Code Box -->
-            <div class="inline-block bg-dark-800/80 border border-indigo-500/40 border-dashed rounded-2xl py-4 px-8 mb-6 shadow-inner">
-                <div id="display-room-code" class="font-mono text-3xl sm:text-4xl font-extrabold tracking-[0.25em] text-white">
-                    ······
-                </div>
-            </div>
-            
-            <!-- Action Buttons: Copy code & Copy invite link -->
-            <div class="flex flex-wrap items-center justify-center gap-3 mb-4">
-                <button onclick="copyCodeToClipboard()" class="bg-dark-800 hover:bg-dark-700 border border-dark-600 text-gray-200 text-xs font-medium py-2.5 px-4 rounded-xl flex items-center space-x-2 transition-colors">
-                    <i class="bi bi-clipboard"></i>
-                    <span id="copy-code-text">Copy code</span>
-                </button>
-                <button onclick="copyInviteLink()" class="bg-dark-800 hover:bg-dark-700 border border-dark-600 text-gray-200 text-xs font-medium py-2.5 px-4 rounded-xl flex items-center space-x-2 transition-colors">
-                    <i class="bi bi-link-45deg"></i>
-                    <span id="copy-link-text">Copy invite link</span>
-                </button>
-            </div>
-
-            <!-- Invite Link Text Preview -->
-            <div id="invite-link-preview" class="text-[11px] text-gray-500 mb-8 truncate max-w-md mx-auto">
-                Invite link: —
-            </div>
-            
-            <div>
-                <button onclick="cancelRoom()" class="text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 border border-rose-500/20 py-2 px-6 rounded-xl transition-colors">
-                    Cancel
-                </button>
-            </div>
-        </div>
-
-        <!-- VIEW 3: CONNECTING -->
-        <div id="view-connecting" class="w-full glass-card rounded-2xl p-8 text-center hidden">
-            <div class="inline-block w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <h2 class="text-2xl font-bold text-white mb-2">Connecting to room…</h2>
-            <p class="text-gray-400 text-sm">Establishing secure peer-to-peer data tunnel…</p>
-        </div>
-
-        <!-- VIEW 4: GAME BOARD -->
-        <div id="view-game" class="w-full glass-card rounded-2xl p-4 sm:p-6 hidden">
-            <!-- HUD Header -->
-            <div class="flex items-center justify-between mb-4 pb-3 border-b border-dark-600">
-                <div class="flex items-center space-x-2">
-                    <span id="game-status-dot" class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
-                    <div>
-                        <div id="game-opponent-name" class="text-sm font-semibold text-white">Opponent</div>
-                        <div class="text-xs text-gray-400">Connected P2P</div>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-3 text-xs">
-                    <span class="px-2.5 py-1 rounded-lg bg-dark-800 border border-dark-600 text-gray-300">You: <b id="hud-my-elo">1200</b></span>
-                    <span class="px-2.5 py-1 rounded-lg bg-dark-800 border border-dark-600 text-gray-300">Opp: <b id="hud-opp-elo">1200</b></span>
-                </div>
-            </div>
-
-            <!-- Turn & Action Banner -->
-            <div id="turn-banner" class="text-center py-2.5 px-4 mb-4 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 font-medium text-sm">
-                Waiting for game start...
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-                <!-- Board Area (10x10 Grid) -->
-                <div class="md:col-span-2 bg-dark-900 border border-dark-700 rounded-xl p-2 relative aspect-square flex items-center justify-center">
-                    <div id="snakes-board" class="w-full h-full grid grid-cols-10 grid-rows-10 gap-0.5 relative">
-                        <!-- Generated via JS -->
-                    </div>
-                </div>
-
-                <!-- Controls & Dice Sidebar -->
-                <div class="flex flex-col space-y-4">
-                    <!-- Dice Box -->
-                    <div class="bg-dark-800 border border-dark-700 rounded-xl p-5 text-center flex flex-col items-center justify-center">
-                        <div class="text-xs uppercase tracking-wider text-gray-400 mb-2">Dice Roll</div>
-                        <div id="dice-display" class="w-20 h-20 rounded-2xl bg-dark-700 border border-dark-600 flex items-center justify-center text-3xl font-extrabold text-cyan-400 mb-4 shadow-inner">
-                            <i class="bi bi-dice-6"></i>
-                        </div>
-                        <button id="btn-roll" onclick="performDiceRoll()" disabled
-                            class="w-full py-3 px-4 rounded-xl font-semibold bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 opacity-50 cursor-not-allowed transition-all">
-                            Roll Dice
-                        </button>
-                    </div>
-
-                    <!-- Legend & Info -->
-                    <div class="bg-dark-800 border border-dark-700 rounded-xl p-4 text-xs space-y-2 text-gray-400">
-                        <div class="flex items-center justify-between">
-                            <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span><span>Ladders</span></span>
-                            <span class="text-emerald-400 font-mono">Climb up</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span><span>Snakes</span></span>
-                            <span class="text-rose-400 font-mono">Slide down</span>
-                        </div>
-                        <div class="pt-2 border-t border-dark-700 flex justify-between">
-                            <span>Target:</span>
-                            <span class="text-white font-bold font-mono">Square 100</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </main>
-
-    <!-- Footer -->
-    <footer class="w-full max-w-4xl mx-auto px-6 py-4 text-center text-xs text-gray-500 z-10">
-        Built with PeerJS + Tailwind CSS · works great on GitHub Pages
-    </footer>
-
-    <!-- GAME OVER MODAL -->
-    <div id="modal-gameover" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
-        <div class="glass-card rounded-2xl p-8 max-w-sm w-full text-center mx-4">
-            <div id="gameover-icon" class="text-4xl text-cyan-400 mb-3"><i class="bi bi-trophy-fill"></i></div>
-            <h3 id="gameover-title" class="text-2xl font-bold text-white mb-2">You Won!</h3>
-            <p id="gameover-desc" class="text-gray-300 text-sm mb-6">Congratulations on climbing to square 100 first.</p>
-            <button onclick="location.reload()" class="w-full glow-button text-white font-semibold py-3 rounded-xl">
-                Play Again
-            </button>
-        </div>
+<div class="app">
+  <header class="brand">
+    <div class="logo">🎲</div>
+    <div>
+      <div class="brand-name">Wave<em>Ladders</em></div>
+      <div class="brand-tag">peer-to-peer · no accounts · real-time</div>
     </div>
+  </header>
 
-    <!-- CLIENT SCRIPT -->
-    <script>
-        // 12 Distinct Color Options
-        const COLOR_OPTIONS = [
-            { id: 'cyan', name: 'Neon Cyan', bg: '#06b6d4', ring: '#22d3ee' },
-            { id: 'emerald', name: 'Emerald', bg: '#10b981', ring: '#34d399' },
-            { id: 'indigo', name: 'Deep Indigo', bg: '#6366f1', ring: '#818cf8' },
-            { id: 'rose', name: 'Hot Rose', bg: '#f43f5e', ring: '#fb7185' },
-            { id: 'amber', name: 'Amber Gold', bg: '#f59e0b', ring: '#fbbf24' },
-            { id: 'purple', name: 'Electric Purple', bg: '#8b5cf6', ring: '#a78bfa' },
-            { id: 'teal', name: 'Vibrant Teal', bg: '#14b8a6', ring: '#2dd4bf' },
-            { id: 'pink', name: 'Bubblegum Pink', bg: '#ec4899', ring: '#f472b6' },
-            { id: 'lime', name: 'Matrix Lime', bg: '#84cc16', ring: '#a3e635' },
-            { id: 'orange', name: 'Sunset Orange', bg: '#f97316', ring: '#fb923c' },
-            { id: 'blue', name: 'Ocean Blue', bg: '#3b82f6', ring: '#60a5fa' },
-            { id: 'violet', name: 'Neon Violet', bg: '#7c3aed', ring: '#8b5cf6' }
-        ];
+  <!-- SETUP SCREEN -->
+  <section id="screen-setup" class="screen active">
+    <div class="card">
+      <h1 class="hero-title">Play Snakes & Ladders,<br><span class="grad">device-to-device.</span></h1>
+      <p class="hero-sub">Create a room, share the 6-letter code, and play in real time. Moves are sent directly between browsers using WebRTC.</p>
 
-        let selectedColor = COLOR_OPTIONS[0];
+      <label class="field-label" for="nameInput">Your Name</label>
+      <input type="text" id="nameInput" maxlength="15" placeholder="e.g. Alex" autocomplete="off">
 
-        // Snakes and Ladders Mapping (Start -> End)
-        const LADDERS = { 1: 38, 4: 14, 9: 31, 21: 42, 28: 84, 51: 67, 72: 91, 80: 99 };
-        const SNAKES = { 17: 7, 54: 34, 62: 19, 64: 60, 87: 24, 93: 73, 95: 75, 98: 79 };
+      <div style="margin-top: 20px;">
+        <button id="btnCreate" class="btn primary wfull">Create a game room</button>
+      </div>
 
-        // Game State
-        let peer = null;
-        let conn = null;
-        let isHost = false;
-        let roomCode = '';
-        let myName = 'Guest';
-        let oppName = 'Opponent';
-        let myElo = parseInt(localStorage.getItem('waveladders_elo') || '1200');
-        let oppElo = 1200;
+      <div class="divider">or join with a code</div>
 
-        let myPos = 0;
-        let oppPos = 0;
-        let myTurn = false;
+      <div class="join-row">
+        <input type="text" id="codeInput" maxlength="6" placeholder="CODE" autocomplete="off" spellcheck="false">
+        <button id="btnJoin" class="btn ghost">Join →</button>
+      </div>
 
-        function getDiceIcon(num) {
-            const icons = {
-                1: 'bi-dice-1',
-                2: 'bi-dice-2',
-                3: 'bi-dice-3',
-                4: 'bi-dice-4',
-                5: 'bi-dice-5',
-                6: 'bi-dice-6'
-            };
-            return `<i class="bi ${icons[num] || 'bi-dice-6'}"></i>`;
-        }
+      <p style="margin-top: 20px; color: var(--muted); font-size: 12px; line-height: 1.6; text-align: center;">
+        Host plays first. Local ELO rating is stored securely on your device.
+      </p>
+    </div>
+  </section>
 
-        function initApp() {
-            const container = document.getElementById('color-picker-container');
-            container.innerHTML = '';
-            COLOR_OPTIONS.forEach((c, idx) => {
-                const swatch = document.createElement('div');
-                swatch.className = `color-swatch ${idx === 0 ? 'selected' : ''}`;
-                swatch.style.backgroundColor = c.bg;
-                swatch.title = c.name;
-                swatch.onclick = () => {
-                    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
-                    swatch.classList.add('selected');
-                    selectedColor = c;
-                };
-                container.appendChild(swatch);
-            });
-            document.getElementById('nav-elo-val').innerText = myElo;
+  <!-- HOST WAITING SCREEN -->
+  <section id="screen-host" class="screen">
+    <div class="card center">
+      <div class="radar"><div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="core"></div></div>
+      <h2 style="font-family: 'Space Grotesk'; font-weight: 700; margin-bottom: 8px;">Waiting for opponent…</h2>
+      <p class="hero-sub" style="margin-bottom: 12px;">Share this room code:</p>
+      <div class="code-box" id="roomCodeEl">······</div>
+      <div class="share-row">
+        <button id="btnCopyCode" class="btn ghost">📋 Copy code</button>
+        <button id="btnCopyLink" class="btn ghost">🔗 Copy link</button>
+      </div>
+      <p class="hint" id="inviteHint"></p>
+      <button id="btnCancelHost" class="btn danger-ghost">Cancel</button>
+    </div>
+  </section>
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const roomParam = urlParams.get('room');
-            if (roomParam && roomParam.length === 6) {
-                document.getElementById('input-room-code').value = roomParam.toUpperCase();
-            }
-        }
+  <!-- JOINING SCREEN -->
+  <section id="screen-join" class="screen">
+    <div class="card center">
+      <div class="spinner"></div>
+      <h2 style="font-family: 'Space Grotesk'; font-weight: 700; margin-bottom: 8px;">Connecting to <span id="joiningCode" style="background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">······</span></h2>
+      <p class="hero-sub" id="joinStatus">Knocking on the room…</p>
+      <button id="btnCancelJoin" class="btn danger-ghost">Cancel</button>
+    </div>
+  </section>
 
-        function buildBoardDOM() {
-            const boardContainer = document.getElementById('snakes-board');
-            boardContainer.innerHTML = '';
+  <!-- GAME SCREEN -->
+  <section id="screen-game" class="screen">
+    <div class="game-card">
+      <header class="game-head">
+        <div class="avatar" id="opp-avatar">?</div>
+        <div class="meta">
+          <div class="opp-name" id="game-opponent-name">Opponent</div>
+          <div class="pill" id="conn-pill"><span class="dot"></span><span id="pill-text">Connected</span></div>
+        </div>
+        <div class="ratings">
+          <span class="rating-chip" id="hud-my-elo">You: 1200</span>
+          <span class="rating-chip" id="hud-opp-elo">Opp: 1200</span>
+        </div>
+      </header>
 
-            for (let row = 9; row >= 0; row--) {
-                let colIndices = [];
-                for (let col = 0; col < 10; col++) {
-                    colIndices.push(col);
-                }
-                if (row % 2 === 1) {
-                    colIndices.reverse();
-                }
+      <div class="status-bar" id="turn-banner">Waiting for game start...</div>
 
-                colIndices.forEach(col => {
-                    const num = row * 10 + col + 1;
-                    const cell = document.createElement('div');
-                    cell.id = `cell-${num}`;
-                    cell.className = 'border border-dark-700/50 rounded flex flex-col justify-between p-1 relative text-[10px] font-mono select-none';
-                    
-                    if (LADDERS[num]) {
-                        cell.classList.add('bg-emerald-950/30', 'border-emerald-500/20');
-                    } else if (SNAKES[num]) {
-                        cell.classList.add('bg-rose-950/30', 'border-rose-500/20');
-                    } else {
-                        cell.classList.add('bg-dark-800/40');
-                    }
+      <div class="board-wrap">
+        <div class="board-container">
+          <div id="board-10x10" class="board-10x10"></div>
+          <svg id="board-svg" class="board-svg" viewBox="0 0 100 100">
+            <defs>
+              <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="1.5" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+              <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="1.5" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+          </svg>
+          <div class="token-overlay">
+            <div id="token-my" class="token token-my"></div>
+            <div id="token-opp" class="token token-opp"></div>
+          </div>
+        </div>
+      </div>
 
-                    const numSpan = document.createElement('span');
-                    numSpan.className = 'text-gray-500 font-semibold';
-                    numSpan.innerText = num;
-                    cell.appendChild(numSpan);
+      <div class="controls">
+        <div class="dice-display" id="dice-display"><i class="bi bi-dice-6"></i></div>
+        <button id="btn-roll" onclick="performDiceRoll()" disabled class="btn primary" style="width: 100%; max-width: 220px;">Roll Dice</button>
+        
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot" style="background: #10b981;"></span> Ladders (Climb)</div>
+          <div class="legend-item"><span class="legend-dot" style="background: #f43f5e;"></span> Snakes (Slide)</div>
+        </div>
+      </div>
 
-                    if (LADDERS[num]) {
-                        const tag = document.createElement('span');
-                        tag.className = 'text-emerald-400 font-bold text-[8px] truncate';
-                        tag.innerText = `L:${LADDERS[num]}`;
-                        cell.appendChild(tag);
-                    } else if (SNAKES[num]) {
-                        const tag = document.createElement('span');
-                        tag.className = 'text-rose-400 font-bold text-[8px] truncate';
-                        tag.innerText = `S:${SNAKES[num]}`;
-                        cell.appendChild(tag);
-                    }
+      <div class="game-over" id="modal-gameover">
+        <p id="gameover-title" style="font-size: 26px; font-weight: 700; color: var(--text);">You Won!</p>
+        <p id="gameover-desc" style="color: var(--muted);">Congratulations on climbing to square 100 first.</p>
+        <button onclick="location.reload()" class="btn primary" style="margin-top: 8px;">Play Again</button>
+      </div>
+    </div>
+  </section>
 
-                    const tokenContainer = document.createElement('div');
-                    tokenContainer.id = `tokens-${num}`;
-                    tokenContainer.className = 'absolute inset-0 flex items-center justify-center gap-1 pointer-events-none';
-                    cell.appendChild(tokenContainer);
+  <p class="footer-note">Built with PeerJS + Vanilla JS · works great on GitHub Pages</p>
+</div>
 
-                    boardContainer.appendChild(cell);
-                });
-            }
-            updateTokenPositions();
-        }
+<div id="toast"></div>
 
-        function updateTokenPositions() {
-            for (let i = 0; i <= 100; i++) {
-                const tc = document.getElementById(`tokens-${i}`);
-                if (tc) tc.innerHTML = '';
-            }
+<script>
+  // ── Game Constants ──────────────────────────────────────
+  const LADDERS = { 1: 38, 4: 14, 9: 31, 21: 42, 28: 84, 51: 67, 72: 91, 80: 99 };
+  const SNAKES = { 17: 7, 54: 34, 62: 19, 64: 60, 87: 24, 93: 73, 95: 75, 98: 79 };
+  const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const PREFIX = 'waveladders-room-v1-';
 
-            if (myPos >= 0 && myPos <= 100) {
-                const tc = document.getElementById(`tokens-${myPos}`);
-                if (tc) {
-                    const t = document.createElement('div');
-                    t.className = 'w-4 h-4 rounded-full shadow-lg border border-white/80 animate-bounce';
-                    t.style.backgroundColor = selectedColor.bg;
-                    t.title = `${myName} (You)`;
-                    tc.appendChild(t);
-                }
-            }
+  // ── State ───────────────────────────────────────────────
+  let peer = null, conn = null;
+  let isHost = false, roomCode = '';
+  let myName = 'Guest', oppName = 'Opponent';
+  let myElo = parseInt(localStorage.getItem('wl_elo') || '1200');
+  let oppElo = 1200;
+  let myPos = 0, oppPos = 0;
+  let myTurn = false;
+  let seenMsgs = new Set();
 
-            if (oppPos >= 0 && oppPos <= 100) {
-                const tc = document.getElementById(`tokens-${oppPos}`);
-                if (tc) {
-                    const t = document.createElement('div');
-                    t.className = 'w-4 h-4 rounded-full shadow-lg border border-white/80';
-                    t.style.backgroundColor = selectedColor.bg === '#f59e0b' ? '#06b6d4' : '#f59e0b';
-                    t.title = oppName;
-                    tc.appendChild(t);
-                }
-            }
-        }
+  // ── Helpers ─────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+  
+  function getSquareCenter(num) {
+    if (num <= 0) return { x: -10, y: 110 }; // Off-board start
+    if (num > 100) num = 100;
+    const rowFromBottom = Math.floor((num - 1) / 10);
+    const colInRow = (num - 1) % 10;
+    const col = (rowFromBottom % 2 === 0) ? colInRow : (9 - colInRow);
+    return { x: col * 10 + 5, y: (9 - rowFromBottom) * 10 + 5 };
+  }
 
-        function generateRoomCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            let code = '';
-            for (let i = 0; i < 6; i++) {
-                code += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return code;
-        }
+  function getDiceIcon(num) {
+    const icons = { 1: 'bi-dice-1', 2: 'bi-dice-2', 3: 'bi-dice-3', 4: 'bi-dice-4', 5: 'bi-dice-5', 6: 'bi-dice-6' };
+    return `<i class="bi ${icons[num] || 'bi-dice-6'}"></i>`;
+  }
 
-        function createRoom() {
-            myName = document.getElementById('input-username').value.trim() || 'Guest';
-            roomCode = generateRoomCode();
-            isHost = true;
-            myPos = 0;
-            oppPos = 0;
+  function makeCode() {
+    let out = '';
+    const arr = new Uint32Array(6);
+    (window.crypto || window.msCrypto).getRandomValues(arr);
+    for (let i = 0; i < 6; i++) out += CODE_CHARS[arr[i] % CODE_CHARS.length];
+    return out;
+  }
 
-            document.getElementById('view-lobby').classList.add('hidden');
-            document.getElementById('view-waiting').classList.remove('hidden');
-            
-            document.getElementById('display-room-code').innerText = roomCode.split('').join(' ');
-            
-            const baseUrl = window.location.origin + window.location.pathname;
-            const inviteUrl = `${baseUrl}?room=${roomCode}`;
-            document.getElementById('invite-link-preview').innerText = `Invite link: ${inviteUrl}`;
+  function toast(msg, ms = 2600) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), ms);
+  }
 
-            peer = new Peer('wave-ladder-' + roomCode.toLowerCase());
-            peer.on('open', (id) => {
-                console.log('Room created with ID:', id);
-            });
+  function copyText(txt, okMsg) {
+    navigator.clipboard.writeText(txt).then(() => toast(okMsg)).catch(() => toast('Copy failed'));
+  }
 
-            peer.on('connection', (incomingConn) => {
-                conn = incomingConn;
-                setupConnection();
-            });
+  // ── Board & SVG Generation ──────────────────────────────
+  function buildBoardDOM() {
+    const board = $('board-10x10');
+    board.innerHTML = '';
+    for (let row = 9; row >= 0; row--) {
+      let cols = Array.from({length: 10}, (_, i) => i);
+      if (row % 2 === 1) cols.reverse();
+      
+      cols.forEach(col => {
+        const num = row * 10 + col + 1;
+        const cell = document.createElement('div');
+        cell.className = `square-10 ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
+        if (LADDERS[num]) cell.classList.add('ladder-start');
+        if (SNAKES[num]) cell.classList.add('snake-start');
+        
+        const numSpan = document.createElement('span');
+        numSpan.textContent = num;
+        cell.appendChild(numSpan);
+        board.appendChild(cell);
+      });
+    }
+    drawSnakesAndLadders();
+    
+    myPos = 0; oppPos = 0;
+    setTokenPosition('my', 0);
+    setTokenPosition('opp', 0);
+  }
 
-            peer.on('error', (err) => {
-                alert('Connection error: ' + err.type);
-                cancelRoom();
-            });
-        }
+  function drawSnakesAndLadders() {
+    const svg = $('board-svg');
+    // Keep defs, clear rest
+    const defs = svg.querySelector('defs').outerHTML;
+    svg.innerHTML = defs;
 
-        function joinRoom() {
-            myName = document.getElementById('input-username').value.trim() || 'Guest';
-            const codeInput = document.getElementById('input-room-code').value.trim().toUpperCase();
-            if (codeInput.length !== 6) {
-                alert('Please enter a valid 6-letter room code.');
-                return;
-            }
+    // Draw Ladders
+    for (const [start, end] of Object.entries(LADDERS)) {
+      const p1 = getSquareCenter(parseInt(start));
+      const p2 = getSquareCenter(end);
+      const dx = p2.x - p1.x, dy = p2.y - p1.y;
+      const len = Math.sqrt(dx*dx + dy*dy);
+      const offset = 1.2;
+      const ux = -dy / len * offset, uy = dx / len * offset;
 
-            roomCode = codeInput;
-            isHost = false;
-            myPos = 0;
-            oppPos = 0;
+      let html = `<line x1="${p1.x + ux}" y1="${p1.y + uy}" x2="${p2.x + ux}" y2="${p2.y + uy}" stroke="#10b981" stroke-width="1.2" stroke-linecap="round" />`;
+      html += `<line x1="${p1.x - ux}" y1="${p1.y - uy}" x2="${p2.x - ux}" y2="${p2.y - uy}" stroke="#10b981" stroke-width="1.2" stroke-linecap="round" />`;
+      
+      const numRungs = Math.max(3, Math.floor(len / 6));
+      for (let i = 1; i < numRungs; i++) {
+        const t = i / numRungs;
+        const rx = p1.x + dx * t, ry = p1.y + dy * t;
+        html += `<line x1="${rx + ux}" y1="${ry + uy}" x2="${rx - ux}" y2="${ry - uy}" stroke="#10b981" stroke-width="1.2" stroke-linecap="round" />`;
+      }
+      svg.innerHTML += `<g filter="url(#glow-green)">${html}</g>`;
+    }
 
-            document.getElementById('view-lobby').classList.add('hidden');
-            document.getElementById('view-connecting').classList.remove('hidden');
+    // Draw Snakes
+    for (const [start, end] of Object.entries(SNAKES)) {
+      const p1 = getSquareCenter(parseInt(start)); // head
+      const p2 = getSquareCenter(end); // tail
+      const wiggle = (parseInt(start) % 2 === 0 ? 1 : -1) * 15;
+      
+      const cp1x = p1.x + wiggle, cp1y = p1.y + (p2.y - p1.y) * 0.3;
+      const cp2x = p2.x - wiggle, cp2y = p2.y - (p2.y - p1.y) * 0.3;
+      
+      let html = `<path d="M ${p1.x} ${p1.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}" fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round" />`;
+      html += `<circle cx="${p1.x}" cy="${p1.y}" r="2.8" fill="#f43f5e" />`;
+      html += `<circle cx="${p1.x - 0.9}" cy="${p1.y - 0.9}" r="0.7" fill="#07080f" />`;
+      html += `<circle cx="${p1.x + 0.9}" cy="${p1.y - 0.9}" r="0.7" fill="#07080f" />`;
+      html += `<circle cx="${p2.x}" cy="${p2.y}" r="1.2" fill="#f43f5e" />`;
+      
+      svg.innerHTML += `<g filter="url(#glow-red)">${html}</g>`;
+    }
+  }
 
-            peer = new Peer();
-            peer.on('open', () => {
-                conn = peer.connect('wave-ladder-' + roomCode.toLowerCase());
-                setupConnection();
-            });
+  function setTokenPosition(player, pos) {
+    const token = $(`token-${player}`);
+    const center = getSquareCenter(pos);
+    const offsetX = player === 'my' ? -1.5 : 1.5;
+    const offsetY = player === 'my' ? -1.5 : 1.5;
+    token.style.left = `${center.x + offsetX}%`;
+    token.style.top = `${center.y + offsetY}%`;
+  }
 
-            peer.on('error', () => {
-                alert('Could not find room with code: ' + roomCode);
-                cancelRoom();
-            });
-        }
+  // ── Animation & Game Logic ──────────────────────────────
+  async function executeMove(player, roll, intermediatePos, finalPos) {
+    const diceEl = $('dice-display');
+    if (player === 'my') {
+      diceEl.innerHTML = getDiceIcon(roll);
+      diceEl.classList.add('dice-shaking');
+      await wait(600);
+      diceEl.classList.remove('dice-shaking');
+    }
 
-        function cancelRoom() {
-            if (peer) peer.destroy();
-            document.getElementById('view-waiting').classList.add('hidden');
-            document.getElementById('view-connecting').classList.add('hidden');
-            document.getElementById('view-game').classList.add('hidden');
-            document.getElementById('view-lobby').classList.remove('hidden');
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
+    // 1. Move to intermediate square
+    setTokenPosition(player, intermediatePos);
+    await wait(600);
 
-        function copyCodeToClipboard() {
-            navigator.clipboard.writeText(roomCode).then(() => {
-                const btnText = document.getElementById('copy-code-text');
-                btnText.innerText = 'Copied!';
-                setTimeout(() => { btnText.innerText = 'Copy code'; }, 2000);
-            });
-        }
+    // 2. If snake or ladder, animate to final square
+    if (intermediatePos !== finalPos) {
+      const token = $(`token-${player}`);
+      token.style.transition = 'left 0.8s cubic-bezier(0.45, 0, 0.55, 1), top 0.8s cubic-bezier(0.45, 0, 0.55, 1)';
+      setTokenPosition(player, finalPos);
+      await wait(900);
+      token.style.transition = 'left 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    }
 
-        function copyInviteLink() {
-            const baseUrl = window.location.origin + window.location.pathname;
-            const inviteUrl = `${baseUrl}?room=${roomCode}`;
-            navigator.clipboard.writeText(inviteUrl).then(() => {
-                const btnText = document.getElementById('copy-link-text');
-                btnText.innerText = 'Copied link!';
-                setTimeout(() => { btnText.innerText = 'Copy invite link'; }, 2000);
-            });
-        }
+    // 3. Update state
+    if (player === 'my') myPos = finalPos;
+    else oppPos = finalPos;
 
-        function setupConnection() {
-            conn.on('open', () => {
-                conn.send({
-                    type: 'HANDSHAKE',
-                    name: myName,
-                    elo: myElo,
-                    color: selectedColor
-                });
+    // 4. Check win or switch turn
+    if (finalPos === 100) {
+      triggerGameOver(player === 'my');
+    } else {
+      myTurn = (player === 'opp');
+      updateTurnUI();
+    }
+  }
 
-                if (isHost) {
-                    startGame(true);
-                }
-            });
+  function performDiceRoll() {
+    if (!myTurn) return;
+    myTurn = false;
+    updateTurnUI();
+    $('btn-roll').disabled = true;
 
-            conn.on('data', (data) => {
-                handlePeerData(data);
-            });
+    const finalRoll = Math.floor(Math.random() * 6) + 1;
+    let targetPos = myPos + finalRoll;
+    if (targetPos > 100) targetPos = 100 - (targetPos - 100); // Bounce back
 
-            conn.on('close', () => {
-                alert('Opponent disconnected.');
-                location.reload();
-            });
-        }
+    let intermediatePos = targetPos;
+    let finalPos = targetPos;
+    if (LADDERS[targetPos]) finalPos = LADDERS[targetPos];
+    else if (SNAKES[targetPos]) finalPos = SNAKES[targetPos];
 
-        function startGame(hostTurn) {
-            document.getElementById('view-waiting').classList.add('hidden');
-            document.getElementById('view-connecting').classList.add('hidden');
-            document.getElementById('view-game').classList.remove('hidden');
+    // Send to opponent immediately for synchronized animation
+    conn.send({ type: 'ROLL_MOVE', roll: finalRoll, intermediatePos, finalPos, msgId: Date.now().toString() });
+    
+    // Execute local animation
+    executeMove('my', finalRoll, intermediatePos, finalPos);
+  }
 
-            buildBoardDOM();
+  function updateTurnUI() {
+    const banner = $('turn-banner');
+    const rollBtn = $('btn-roll');
+    if (myTurn) {
+      banner.textContent = "Your turn! Roll the dice.";
+      banner.className = "status-bar active-turn";
+      rollBtn.disabled = false;
+    } else {
+      banner.textContent = `${oppName}'s turn to roll...`;
+      banner.className = "status-bar";
+      rollBtn.disabled = true;
+    }
+  }
 
-            document.getElementById('game-opponent-name').innerText = oppName;
-            document.getElementById('hud-my-elo').innerText = myElo;
-            document.getElementById('hud-opp-elo').innerText = oppElo;
+  function triggerGameOver(didWin) {
+    const modal = $('modal-gameover');
+    modal.classList.add('show');
+    if (didWin) {
+      $('gameover-title').textContent = "You Won!";
+      $('gameover-title').style.color = "var(--cyan)";
+      $('gameover-desc').textContent = "You successfully climbed to square 100 first!";
+      myElo += 18;
+    } else {
+      $('gameover-title').textContent = "You Lost!";
+      $('gameover-title').style.color = "var(--danger)";
+      $('gameover-desc').textContent = `${oppName} reached square 100 first.`;
+      myElo = Math.max(100, myElo - 15);
+    }
+    localStorage.setItem('wl_elo', myElo);
+    $('hud-my-elo').textContent = `You: ${myElo}`;
+  }
 
-            myTurn = hostTurn;
-            updateTurnUI();
-        }
+  // ── WebRTC / PeerJS Logic ───────────────────────────────
+  function handlePeerData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.msgId) {
+      if (seenMsgs.has(data.msgId)) return;
+      seenMsgs.add(data.msgId);
+      if (seenMsgs.size > 100) seenMsgs.clear();
+    }
 
-        function handlePeerData(data) {
-            if (data.type === 'HANDSHAKE') {
-                oppName = data.name;
-                oppElo = data.elo;
-                document.getElementById('game-opponent-name').innerText = oppName;
-                document.getElementById('hud-opp-elo').innerText = oppElo;
-            } else if (data.type === 'ROLL_MOVE') {
-                const roll = data.roll;
-                const newPos = data.newPos;
-                
-                document.getElementById('dice-display').innerHTML = getDiceIcon(roll);
-                oppPos = newPos;
-                updateTokenPositions();
+    if (data.type === 'HANDSHAKE') {
+      oppName = data.name;
+      oppElo = data.elo;
+      $('game-opponent-name').textContent = oppName;
+      $('opp-avatar').textContent = (oppName.charAt(0) || '?').toUpperCase();
+      $('hud-opp-elo').textContent = `Opp: ${oppElo}`;
+    } else if (data.type === 'ROLL_MOVE') {
+      executeMove('opp', data.roll, data.intermediatePos, data.finalPos);
+    }
+  }
 
-                if (oppPos === 100) {
-                    triggerGameOver(false);
-                    return;
-                }
+  function setupConnection(c) {
+    conn = c;
+    const handleOpen = () => {
+      conn.send({ type: 'HANDSHAKE', name: myName, elo: myElo });
+      if (isHost) {
+        myTurn = true;
+        updateTurnUI();
+      }
+    };
+    if (c.open) handleOpen();
+    else c.on('open', handleOpen);
 
-                myTurn = true;
-                updateTurnUI();
-            }
-        }
+    c.on('data', handlePeerData);
+    c.on('close', () => {
+      toast('Opponent disconnected.');
+      location.reload();
+    });
+  }
 
-        function updateTurnUI() {
-            const banner = document.getElementById('turn-banner');
-            const rollBtn = document.getElementById('btn-roll');
+  function createRoom() {
+    myName = $('nameInput').value.trim() || 'Guest';
+    localStorage.setItem('wl_name', myName);
+    roomCode = makeCode();
+    isHost = true;
 
-            if (myTurn) {
-                banner.innerText = "Your turn! Roll the dice.";
-                banner.className = "text-center py-2.5 px-4 mb-4 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 font-medium text-sm animate-pulse";
-                rollBtn.disabled = false;
-                rollBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                rollBtn.classList.add('glow-button', 'cursor-pointer');
-            } else {
-                banner.innerText = `${oppName}'s turn to roll...`;
-                banner.className = "text-center py-2.5 px-4 mb-4 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 font-medium text-sm";
-                rollBtn.disabled = true;
-                rollBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                rollBtn.classList.remove('glow-button', 'cursor-pointer');
-            }
-        }
+    $('screen-setup').classList.remove('active');
+    $('screen-host').classList.add('active');
+    $('roomCodeEl').textContent = roomCode;
+    $('inviteHint').textContent = `Invite link: ${location.origin}${location.pathname}?room=${roomCode}`;
 
-        function performDiceRoll() {
-            if (!myTurn) return;
-            myTurn = false;
-            updateTurnUI();
+    peer = new Peer(PREFIX + roomCode);
+    peer.on('open', () => console.log('Room created:', roomCode));
+    peer.on('connection', setupConnection);
+    peer.on('error', err => { alert('Connection error: ' + err.type); location.reload(); });
+  }
 
-            const rollBtn = document.getElementById('btn-roll');
-            rollBtn.disabled = true;
+  function joinRoom() {
+    const code = $('codeInput').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length !== 6) { toast('Enter a valid 6-character code.'); return; }
+    
+    myName = $('nameInput').value.trim() || 'Guest';
+    localStorage.setItem('wl_name', myName);
+    roomCode = code;
+    isHost = false;
 
-            let counter = 0;
-            const diceEl = document.getElementById('dice-display');
-            
-            const rollInterval = setInterval(() => {
-                const tempRoll = Math.floor(Math.random() * 6) + 1;
-                diceEl.innerHTML = getDiceIcon(tempRoll);
-                counter++;
-                if (counter > 10) {
-                    clearInterval(rollInterval);
-                    
-                    const finalRoll = Math.floor(Math.random() * 6) + 1;
-                    diceEl.innerHTML = getDiceIcon(finalRoll);
+    $('screen-setup').classList.remove('active');
+    $('screen-join').classList.add('active');
+    $('joiningCode').textContent = roomCode;
 
-                    let targetPos = myPos + finalRoll;
-                    if (targetPos > 100) {
-                        targetPos = 100 - (targetPos - 100);
-                    }
+    peer = new Peer();
+    peer.on('open', () => {
+      const c = peer.connect(PREFIX + roomCode, { reliable: true });
+      setupConnection(c);
+    });
+    peer.on('error', () => {
+      toast('Room not found.');
+      $('screen-join').classList.remove('active');
+      $('screen-setup').classList.add('active');
+    });
+    
+    setTimeout(() => {
+      if (!conn || !conn.open) {
+        toast('No answer from that room.');
+        peer.destroy();
+        $('screen-join').classList.remove('active');
+        $('screen-setup').classList.add('active');
+      }
+    }, 12000);
+  }
 
-                    if (LADDERS[targetPos]) {
-                        targetPos = LADDERS[targetPos];
-                    } else if (SNAKES[targetPos]) {
-                        targetPos = SNAKES[targetPos];
-                    }
+  function startGame() {
+    $('screen-host')?.classList.remove('active');
+    $('screen-join')?.classList.remove('active');
+    $('screen-game').classList.add('active');
+    
+    buildBoardDOM();
+    $('hud-my-elo').textContent = `You: ${myElo}`;
+  }
 
-                    myPos = targetPos;
-                    updateTokenPositions();
+  // Override connection setup to trigger game start UI
+  const originalSetup = setupConnection;
+  setupConnection = function(c) {
+    conn = c;
+    const handleOpen = () => {
+      conn.send({ type: 'HANDSHAKE', name: myName, elo: myElo });
+      startGame();
+      if (isHost) {
+        myTurn = true;
+        updateTurnUI();
+      }
+    };
+    if (c.open) handleOpen();
+    else c.on('open', handleOpen);
 
-                    conn.send({
-                        type: 'ROLL_MOVE',
-                        roll: finalRoll,
-                        newPos: myPos
-                    });
+    c.on('data', handlePeerData);
+    c.on('close', () => { toast('Opponent disconnected.'); location.reload(); });
+  };
 
-                    if (myPos === 100) {
-                        triggerGameOver(true);
-                        return;
-                    }
-                }
-            }, 60);
-        }
+  // ── Initialization ──────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    const savedName = localStorage.getItem('wl_name');
+    if (savedName) $('nameInput').value = savedName;
 
-        function triggerGameOver(didWin) {
-            const modal = document.getElementById('modal-gameover');
-            const icon = document.getElementById('gameover-icon');
-            const title = document.getElementById('gameover-title');
-            const desc = document.getElementById('gameover-desc');
+    const urlParams = new URLSearchParams(location.search);
+    const roomParam = urlParams.get('room');
+    if (roomParam) {
+      $('codeInput').value = roomParam.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+      history.replaceState({}, '', location.pathname);
+    }
 
-            modal.classList.remove('hidden');
-
-            if (didWin) {
-                icon.innerHTML = '<i class="bi bi-trophy-fill"></i>';
-                icon.className = "text-4xl text-cyan-400 mb-3";
-                title.innerText = "You Won!";
-                title.className = "text-2xl font-bold text-cyan-400 mb-2";
-                desc.innerText = "You successfully climbed to square 100 first!";
-                myElo += 18;
-            } else {
-                icon.innerHTML = '<i class="bi bi-emoji-frown-fill"></i>';
-                icon.className = "text-4xl text-rose-400 mb-3";
-                title.innerText = "You Lost!";
-                title.className = "text-2xl font-bold text-rose-400 mb-2";
-                desc.innerText = `${oppName} reached square 100 first.`;
-                myElo = Math.max(100, myElo - 15);
-            }
-
-            localStorage.setItem('waveladders_elo', myElo);
-            document.getElementById('nav-elo-val').innerText = myElo;
-        }
-
-        window.onload = () => {
-            initApp();
-        };
-    </script>
+    $('btnCreate').addEventListener('click', createRoom);
+    $('btnJoin').addEventListener('click', joinRoom);
+    $('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
+    $('codeInput').addEventListener('input', function() { this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); });
+    
+    $('btnCancelHost').addEventListener('click', () => { peer?.destroy(); location.reload(); });
+    $('btnCancelJoin').addEventListener('click', () => { peer?.destroy(); location.reload(); });
+    
+    $('btnCopyCode').addEventListener('click', () => copyText(roomCode, 'Room code copied!'));
+    $('btnCopyLink').addEventListener('click', () => copyText(`${location.origin}${location.pathname}?room=${roomCode}`, 'Invite link copied!'));
+  });
+</script>
 </body>
 </html>
