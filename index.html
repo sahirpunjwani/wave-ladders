@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <style>
   :root {
@@ -103,6 +104,19 @@
   .join-row { display: flex; gap: 10px; }
   .join-row input { text-align: center; font-family: 'JetBrains Mono', monospace; letter-spacing: 2px; text-transform: uppercase; }
 
+  /* ── Multiplayer Mode Selector (Wave-Chat Style) ─────── */
+  .mode-selector { display: flex; gap: 8px; margin-bottom: 24px; }
+  .mode-btn {
+    flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--card-border);
+    background: var(--ghost-bg); color: var(--muted); font-family: 'Inter'; font-weight: 600;
+    font-size: 14px; cursor: pointer; transition: all 0.2s;
+  }
+  .mode-btn.active {
+    background: var(--grad); color: #fff; border-color: transparent;
+    box-shadow: 0 4px 14px rgba(124,92,255,0.3);
+  }
+  .mode-btn:hover:not(.active) { background: var(--ghost-hover); color: var(--text); }
+
   /* ── Waiting / Connecting Screens ────────────────────── */
   .center { text-align: center; }
   .radar { width: 80px; height: 80px; margin: 0 auto 20px; position: relative; }
@@ -114,7 +128,7 @@
   .spinner { width: 40px; height: 40px; border: 3px solid var(--card-border); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .code-box { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700; letter-spacing: 4px; margin: 16px 0; color: var(--text); }
-  .share-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 16px; }
+  .share-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap; }
   .hint { font-size: 12px; color: var(--muted); margin-bottom: 20px; word-break: break-all; }
 
   /* ── Game Screen ─────────────────────────────────────── */
@@ -143,40 +157,30 @@
   }
   .square-10 {
     position: relative; display: flex; align-items: flex-start; justify-content: flex-start;
-    padding: 4%; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.25);
+    padding: 6%; font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.3);
     font-family: 'JetBrains Mono', monospace;
+    border: 1px solid rgba(255, 255, 255, 0.08); /* Clearer borders */
   }
-  .square-10.light { background: rgba(255,255,255,0.04); }
-  .square-10.dark { background: rgba(0,0,0,0.25); }
-  .square-10.ladder-start { background: rgba(16, 185, 129, 0.2); box-shadow: inset 0 0 10px rgba(16, 185, 129, 0.1); }
-  .square-10.snake-start { background: rgba(244, 63, 94, 0.2); box-shadow: inset 0 0 10px rgba(244, 63, 94, 0.1); }
+  .square-10.light { background: rgba(255,255,255,0.03); }
+  .square-10.dark { background: rgba(0,0,0,0.2); }
+  .square-10.ladder-start { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); }
+  .square-10.snake-start { background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.4); }
 
   .board-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
   
   .token-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
   .token {
-    position: absolute; width: 7%; height: 7%; border-radius: 50%;
-    border: 2.5px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    position: absolute; width: 5%; height: 5%; border-radius: 50%; /* Smaller pieces */
+    border: 2px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.3);
     transform: translate(-50%, -50%); z-index: 10;
-    transition: left 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: left 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .token-my { background: var(--cyan); }
   .token-opp { background: var(--violet); }
 
   .controls { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 0 16px 24px; }
-  .dice-display {
-    width: 72px; height: 72px; border-radius: 16px; background: var(--ghost-bg);
-    border: 1px solid var(--card-border); display: grid; place-items: center;
-    font-size: 36px; color: var(--cyan); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
-    transition: transform 0.1s;
-  }
-  @keyframes shake {
-    0%, 100% { transform: rotate(0deg) scale(1); }
-    25% { transform: rotate(-15deg) scale(1.1); }
-    75% { transform: rotate(15deg) scale(1.1); }
-  }
-  .dice-shaking { animation: shake 0.1s infinite; }
-
+  .dice-container { width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; }
+  
   .legend { display: flex; gap: 20px; font-size: 12px; color: var(--muted); }
   .legend-item { display: flex; align-items: center; gap: 6px; }
   .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
@@ -228,7 +232,14 @@
       <label class="field-label" for="nameInput">Your Name</label>
       <input type="text" id="nameInput" maxlength="15" placeholder="e.g. Alex" autocomplete="off">
 
-      <div style="margin-top: 20px;">
+      <label class="field-label" style="margin-top: 20px;">Game Mode</label>
+      <div class="mode-selector">
+        <button class="mode-btn active" onclick="selectMode(this, 2)">2 Players</button>
+        <button class="mode-btn" onclick="selectMode(this, 3)">3 Players</button>
+        <button class="mode-btn" onclick="selectMode(this, 4)">4 Players</button>
+      </div>
+
+      <div style="margin-top: 8px;">
         <button id="btnCreate" class="btn primary wfull">Create a game room</button>
       </div>
 
@@ -291,18 +302,7 @@
       <div class="board-wrap">
         <div class="board-container">
           <div id="board-10x10" class="board-10x10"></div>
-          <svg id="board-svg" class="board-svg" viewBox="0 0 100 100">
-            <defs>
-              <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="1.5" result="blur" />
-                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-              <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="1.5" result="blur" />
-                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-            </defs>
-          </svg>
+          <svg id="board-svg" class="board-svg" viewBox="0 0 100 100"></svg>
           <div class="token-overlay">
             <div id="token-my" class="token token-my"></div>
             <div id="token-opp" class="token token-opp"></div>
@@ -311,8 +311,8 @@
       </div>
 
       <div class="controls">
-        <div class="dice-display" id="dice-display"><i class="bi bi-dice-6"></i></div>
-        <button id="btn-roll" onclick="performDiceRoll()" disabled class="btn primary" style="width: 100%; max-width: 220px;">Roll Dice</button>
+        <div id="dice-container" class="dice-container"></div>
+        <button id="btn-roll" onclick="performDiceRoll()" disabled class="btn primary" style="width: 100%; max-width: 220px; margin-top: 8px;">Roll Dice</button>
         
         <div class="legend">
           <div class="legend-item"><span class="legend-dot" style="background: #10b981;"></span> Ladders (Climb)</div>
@@ -328,7 +328,7 @@
     </div>
   </section>
 
-  <p class="footer-note">Built with PeerJS + Vanilla JS · works great on GitHub Pages</p>
+  <p class="footer-note">Built with PeerJS + Three.js · works great on GitHub Pages</p>
 </div>
 
 <div id="toast"></div>
@@ -349,23 +349,23 @@
   let myPos = 0, oppPos = 0;
   let myTurn = false;
   let seenMsgs = new Set();
+  let playerCount = 2;
+
+  // ── Three.js Dice State ─────────────────────────────────
+  let scene, camera, renderer, diceMesh;
+  let isRolling = false;
 
   // ── Helpers ─────────────────────────────────────────────
   const $ = id => document.getElementById(id);
   function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
   
   function getSquareCenter(num) {
-    if (num <= 0) return { x: -10, y: 110 }; // Off-board start
+    if (num <= 0) return { x: -10, y: 110 };
     if (num > 100) num = 100;
     const rowFromBottom = Math.floor((num - 1) / 10);
     const colInRow = (num - 1) % 10;
     const col = (rowFromBottom % 2 === 0) ? colInRow : (9 - colInRow);
     return { x: col * 10 + 5, y: (9 - rowFromBottom) * 10 + 5 };
-  }
-
-  function getDiceIcon(num) {
-    const icons = { 1: 'bi-dice-1', 2: 'bi-dice-2', 3: 'bi-dice-3', 4: 'bi-dice-4', 5: 'bi-dice-5', 6: 'bi-dice-6' };
-    return `<i class="bi ${icons[num] || 'bi-dice-6'}"></i>`;
   }
 
   function makeCode() {
@@ -383,6 +383,166 @@
 
   function copyText(txt, okMsg) {
     navigator.clipboard.writeText(txt).then(() => toast(okMsg)).catch(() => toast('Copy failed'));
+  }
+
+  function selectMode(btn, count) {
+    playerCount = count;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (count > 2) {
+      toast('3-4 Player mesh networking coming soon! Defaulting to 2-player P2P for now.');
+    }
+  }
+
+  // ── 3D Dice Logic ───────────────────────────────────────
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function createDiceTexture(number) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.fillStyle = '#f8fafc';
+    roundRect(ctx, 0, 0, 256, 256, 24);
+    ctx.fill();
+    
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 6;
+    roundRect(ctx, 3, 3, 250, 250, 21);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#0f172a';
+    const r = 22;
+    const positions = {
+      1: [[128, 128]],
+      2: [[64, 64], [192, 192]],
+      3: [[64, 64], [128, 128], [192, 192]],
+      4: [[64, 64], [192, 64], [64, 192], [192, 192]],
+      5: [[64, 64], [192, 64], [128, 128], [64, 192], [192, 192]],
+      6: [[64, 64], [192, 64], [64, 128], [192, 128], [64, 192], [192, 192]]
+    };
+    
+    positions[number].forEach(([x, y]) => {
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    if (renderer) texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    return texture;
+  }
+
+  function initDice() {
+    const container = $('dice-container');
+    if (!container) return;
+    
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.z = 5;
+    
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const light = new THREE.DirectionalLight(0xffffff, 1.2);
+    light.position.set(2, 5, 5);
+    scene.add(light);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+    const materials = [
+      new THREE.MeshStandardMaterial({ map: createDiceTexture(2) }), // +x Right
+      new THREE.MeshStandardMaterial({ map: createDiceTexture(5) }), // -x Left
+      new THREE.MeshStandardMaterial({ map: createDiceTexture(3) }), // +y Top
+      new THREE.MeshStandardMaterial({ map: createDiceTexture(4) }), // -y Bottom
+      new THREE.MeshStandardMaterial({ map: createDiceTexture(1) }), // +z Front
+      new THREE.MeshStandardMaterial({ map: createDiceTexture(6) })  // -z Back
+    ];
+
+    const geometry = new THREE.BoxGeometry(1.8, 1.8, 1.8);
+    diceMesh = new THREE.Mesh(geometry, materials);
+    scene.add(diceMesh);
+
+    animateDice();
+    
+    window.addEventListener('resize', () => {
+      if (!container) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+  }
+
+  function animateDice() {
+    requestAnimationFrame(animateDice);
+    if (!isRolling && diceMesh) {
+      diceMesh.rotation.x += 0.005;
+      diceMesh.rotation.y += 0.005;
+    }
+    if (renderer && scene && camera) {
+      renderer.render(scene, camera);
+    }
+  }
+
+  function rollDice3D(targetNumber, callback) {
+    if (isRolling || !diceMesh) return;
+    isRolling = true;
+    
+    const targetRots = {
+      1: { x: 0, y: 0 },
+      6: { x: 0, y: Math.PI },
+      2: { x: 0, y: -Math.PI / 2 },
+      5: { x: 0, y: Math.PI / 2 },
+      3: { x: -Math.PI / 2, y: 0 },
+      4: { x: Math.PI / 2, y: 0 }
+    };
+    
+    const target = targetRots[targetNumber];
+    const spins = 4 + Math.floor(Math.random() * 3);
+    
+    const startX = diceMesh.rotation.x;
+    const startY = diceMesh.rotation.y;
+    const endX = target.x + spins * Math.PI * 2;
+    const endY = target.y + spins * Math.PI * 2;
+    
+    const duration = 1200;
+    const startTime = performance.now();
+    
+    function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+    
+    function animateRoll(currentTime) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeOutCubic(progress);
+      
+      diceMesh.rotation.x = startX + (endX - startX) * eased;
+      diceMesh.rotation.y = startY + (endY - startY) * eased;
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateRoll);
+      } else {
+        isRolling = false;
+        diceMesh.rotation.x = target.x + spins * Math.PI * 2;
+        diceMesh.rotation.y = target.y + spins * Math.PI * 2;
+        if (callback) callback();
+      }
+    }
+    requestAnimationFrame(animateRoll);
   }
 
   // ── Board & SVG Generation ──────────────────────────────
@@ -415,45 +575,69 @@
 
   function drawSnakesAndLadders() {
     const svg = $('board-svg');
-    // Keep defs, clear rest
-    const defs = svg.querySelector('defs').outerHTML;
-    svg.innerHTML = defs;
+    svg.innerHTML = `
+      <defs>
+        <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="1.5" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="1.5" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <linearGradient id="ladderGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#fbbf24" />
+          <stop offset="100%" stop-color="#d97706" />
+        </linearGradient>
+        <linearGradient id="snakeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#f43f5e" />
+          <stop offset="100%" stop-color="#be123c" />
+        </linearGradient>
+      </defs>
+    `;
 
-    // Draw Ladders
+    // Ladders
     for (const [start, end] of Object.entries(LADDERS)) {
       const p1 = getSquareCenter(parseInt(start));
       const p2 = getSquareCenter(end);
       const dx = p2.x - p1.x, dy = p2.y - p1.y;
       const len = Math.sqrt(dx*dx + dy*dy);
-      const offset = 1.2;
+      const offset = 1.5;
       const ux = -dy / len * offset, uy = dx / len * offset;
 
-      let html = `<line x1="${p1.x + ux}" y1="${p1.y + uy}" x2="${p2.x + ux}" y2="${p2.y + uy}" stroke="#10b981" stroke-width="1.2" stroke-linecap="round" />`;
-      html += `<line x1="${p1.x - ux}" y1="${p1.y - uy}" x2="${p2.x - ux}" y2="${p2.y - uy}" stroke="#10b981" stroke-width="1.2" stroke-linecap="round" />`;
+      let html = `<line x1="${p1.x + ux}" y1="${p1.y + uy}" x2="${p2.x + ux}" y2="${p2.y + uy}" stroke="url(#ladderGrad)" stroke-width="1.5" stroke-linecap="round" />`;
+      html += `<line x1="${p1.x - ux}" y1="${p1.y - uy}" x2="${p2.x - ux}" y2="${p2.y - uy}" stroke="url(#ladderGrad)" stroke-width="1.5" stroke-linecap="round" />`;
       
-      const numRungs = Math.max(3, Math.floor(len / 6));
+      const numRungs = Math.max(3, Math.floor(len / 5));
       for (let i = 1; i < numRungs; i++) {
         const t = i / numRungs;
         const rx = p1.x + dx * t, ry = p1.y + dy * t;
-        html += `<line x1="${rx + ux}" y1="${ry + uy}" x2="${rx - ux}" y2="${ry - uy}" stroke="#10b981" stroke-width="1.2" stroke-linecap="round" />`;
+        html += `<line x1="${rx + ux}" y1="${ry + uy}" x2="${rx - ux}" y2="${ry - uy}" stroke="#fbbf24" stroke-width="1.2" stroke-linecap="round" />`;
       }
       svg.innerHTML += `<g filter="url(#glow-green)">${html}</g>`;
     }
 
-    // Draw Snakes
+    // Snakes (High Quality S-Curve)
     for (const [start, end] of Object.entries(SNAKES)) {
       const p1 = getSquareCenter(parseInt(start)); // head
       const p2 = getSquareCenter(end); // tail
-      const wiggle = (parseInt(start) % 2 === 0 ? 1 : -1) * 15;
+      const dx = p2.x - p1.x, dy = p2.y - p1.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
       
-      const cp1x = p1.x + wiggle, cp1y = p1.y + (p2.y - p1.y) * 0.3;
-      const cp2x = p2.x - wiggle, cp2y = p2.y - (p2.y - p1.y) * 0.3;
+      const offset = 18;
+      const perpX = -dy / dist * offset;
+      const perpY = dx / dist * offset;
       
-      let html = `<path d="M ${p1.x} ${p1.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}" fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round" />`;
-      html += `<circle cx="${p1.x}" cy="${p1.y}" r="2.8" fill="#f43f5e" />`;
-      html += `<circle cx="${p1.x - 0.9}" cy="${p1.y - 0.9}" r="0.7" fill="#07080f" />`;
-      html += `<circle cx="${p1.x + 0.9}" cy="${p1.y - 0.9}" r="0.7" fill="#07080f" />`;
-      html += `<circle cx="${p2.x}" cy="${p2.y}" r="1.2" fill="#f43f5e" />`;
+      const cp1x = p1.x + (dx * 0.4) + perpX;
+      const cp1y = p1.y + (dy * 0.4) + perpY;
+      const cp2x = p2.x - (dx * 0.4) + perpX;
+      const cp2y = p2.y - (dy * 0.4) + perpY;
+      
+      let html = `<path d="M ${p1.x} ${p1.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}" fill="none" stroke="url(#snakeGrad)" stroke-width="3.5" stroke-linecap="round" />`;
+      html += `<circle cx="${p1.x}" cy="${p1.y}" r="4" fill="#f43f5e" />`;
+      html += `<circle cx="${p1.x - 1.2}" cy="${p1.y - 1.2}" r="1" fill="#07080f" />`;
+      html += `<circle cx="${p1.x + 1.2}" cy="${p1.y - 1.2}" r="1" fill="#07080f" />`;
+      html += `<circle cx="${p2.x}" cy="${p2.y}" r="1.5" fill="#f43f5e" />`;
       
       svg.innerHTML += `<g filter="url(#glow-red)">${html}</g>`;
     }
@@ -462,22 +646,14 @@
   function setTokenPosition(player, pos) {
     const token = $(`token-${player}`);
     const center = getSquareCenter(pos);
-    const offsetX = player === 'my' ? -1.5 : 1.5;
-    const offsetY = player === 'my' ? -1.5 : 1.5;
+    const offsetX = player === 'my' ? -1.2 : 1.2;
+    const offsetY = player === 'my' ? -1.2 : 1.2;
     token.style.left = `${center.x + offsetX}%`;
     token.style.top = `${center.y + offsetY}%`;
   }
 
   // ── Animation & Game Logic ──────────────────────────────
   async function executeMove(player, roll, intermediatePos, finalPos) {
-    const diceEl = $('dice-display');
-    if (player === 'my') {
-      diceEl.innerHTML = getDiceIcon(roll);
-      diceEl.classList.add('dice-shaking');
-      await wait(600);
-      diceEl.classList.remove('dice-shaking');
-    }
-
     // 1. Move to intermediate square
     setTokenPosition(player, intermediatePos);
     await wait(600);
@@ -488,7 +664,7 @@
       token.style.transition = 'left 0.8s cubic-bezier(0.45, 0, 0.55, 1), top 0.8s cubic-bezier(0.45, 0, 0.55, 1)';
       setTokenPosition(player, finalPos);
       await wait(900);
-      token.style.transition = 'left 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      token.style.transition = 'left 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
     }
 
     // 3. Update state
@@ -505,14 +681,14 @@
   }
 
   function performDiceRoll() {
-    if (!myTurn) return;
+    if (!myTurn || isRolling) return;
     myTurn = false;
     updateTurnUI();
     $('btn-roll').disabled = true;
 
     const finalRoll = Math.floor(Math.random() * 6) + 1;
     let targetPos = myPos + finalRoll;
-    if (targetPos > 100) targetPos = 100 - (targetPos - 100); // Bounce back
+    if (targetPos > 100) targetPos = 100 - (targetPos - 100);
 
     let intermediatePos = targetPos;
     let finalPos = targetPos;
@@ -523,7 +699,9 @@
     conn.send({ type: 'ROLL_MOVE', roll: finalRoll, intermediatePos, finalPos, msgId: Date.now().toString() });
     
     // Execute local animation
-    executeMove('my', finalRoll, intermediatePos, finalPos);
+    rollDice3D(finalRoll, () => {
+      executeMove('my', finalRoll, intermediatePos, finalPos);
+    });
   }
 
   function updateTurnUI() {
@@ -574,14 +752,32 @@
       $('opp-avatar').textContent = (oppName.charAt(0) || '?').toUpperCase();
       $('hud-opp-elo').textContent = `Opp: ${oppElo}`;
     } else if (data.type === 'ROLL_MOVE') {
-      executeMove('opp', data.roll, data.intermediatePos, data.finalPos);
+      // Opponent is rolling, animate their dice too for perfect sync!
+      rollDice3D(data.roll, () => {
+        executeMove('opp', data.roll, data.intermediatePos, data.finalPos);
+      });
     }
+  }
+
+  function startGame() {
+    $('screen-host')?.classList.remove('active');
+    $('screen-join')?.classList.remove('active');
+    $('screen-game').classList.add('active');
+    
+    buildBoardDOM();
+    $('hud-my-elo').textContent = `You: ${myElo}`;
+    
+    // Initialize 3D Dice after the container is visible
+    setTimeout(() => {
+      initDice();
+    }, 100);
   }
 
   function setupConnection(c) {
     conn = c;
     const handleOpen = () => {
       conn.send({ type: 'HANDSHAKE', name: myName, elo: myElo });
+      startGame();
       if (isHost) {
         myTurn = true;
         updateTurnUI();
@@ -591,10 +787,7 @@
     else c.on('open', handleOpen);
 
     c.on('data', handlePeerData);
-    c.on('close', () => {
-      toast('Opponent disconnected.');
-      location.reload();
-    });
+    c.on('close', () => { toast('Opponent disconnected.'); location.reload(); });
   }
 
   function createRoom() {
@@ -647,34 +840,6 @@
       }
     }, 12000);
   }
-
-  function startGame() {
-    $('screen-host')?.classList.remove('active');
-    $('screen-join')?.classList.remove('active');
-    $('screen-game').classList.add('active');
-    
-    buildBoardDOM();
-    $('hud-my-elo').textContent = `You: ${myElo}`;
-  }
-
-  // Override connection setup to trigger game start UI
-  const originalSetup = setupConnection;
-  setupConnection = function(c) {
-    conn = c;
-    const handleOpen = () => {
-      conn.send({ type: 'HANDSHAKE', name: myName, elo: myElo });
-      startGame();
-      if (isHost) {
-        myTurn = true;
-        updateTurnUI();
-      }
-    };
-    if (c.open) handleOpen();
-    else c.on('open', handleOpen);
-
-    c.on('data', handlePeerData);
-    c.on('close', () => { toast('Opponent disconnected.'); location.reload(); });
-  };
 
   // ── Initialization ──────────────────────────────────────
   window.addEventListener('DOMContentLoaded', () => {
